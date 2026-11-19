@@ -1,0 +1,49 @@
+{
+  "name": "mise",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run --project unit --project nuxt",
+    "test:integration": "vitest run --project integration",
+    "test:all": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file=.env scripts/migrate.ts",
+    "db:create": "tsx --env-file=.env scripts/createDb.ts",
+    "db:setup": "npm run db:create && npm run db:migrate",
+    "user:create": "tsx --env-file=.env scripts/createUser.ts",
+    "docker:up": "docker compose up -d --build --renew-anon-volumes",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f app",
+    "docker:build:prod": "docker build --target production -t mise:latest .",
+    "docker:user:create": "docker compose run --rm db-setup npx tsx scripts/createUser.ts"
+  },
+  "dependencies": {
+    "@adonisjs/hash": "^9.1.1",
+    "@nuxt/fonts": "^1.2.0",
+    "@pinia/nuxt": "^1.0.3",
+    "drizzle-orm": "^0.45.4",
+    "nuxt": "^4.6.4",
+    "nuxt-auth-utils": "^0.6.2",
+    "pinia": "^4.1.0",
+    "postgres": "^4.1.1",
+    "vue": "^3.5.45",
+    "vue-router": "^5.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nuxt/test-utils": "^4.4.0",
+    "@vue/test-utils": "^2.6.0",
+    "drizzle-kit": "^0.31.11",
+    "happy-dom": "^21.0.4",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.1",
+    "vue-tsc": "^3.3.14"
+  }
+}

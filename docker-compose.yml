@@ -1,0 +1,65 @@
+name: mise
+
+x-app-env: &app-env
+  env_file: .env
+  environment:
+    # Inside a container, localhost is the container itself: reach the
+    # PostgreSQL published on the host machine instead.
+    POSTGRES_HOST: host.docker.internal
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+services:
+  # Creates the database if needed and applies migrations, then exits.
+  # Starter data now comes with each new account (see `npm run user:create`).
+  db-setup:
+    <<: *app-env
+    build:
+      context: .
+      target: development
+    command: ["sh", "-c", "npx tsx scripts/createDb.ts && npx tsx scripts/migrate.ts"]
+    restart: "no"
+
+  app:
+    <<: *app-env
+    build:
+      context: .
+      target: development
+    environment:
+      POSTGRES_HOST: host.docker.internal
+      # File events don't cross the Windows/Docker boundary: poll for changes.
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      # This computer only: the dev server shows source code and build errors.
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.nuxt
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Optional local PostgreSQL, only started with `--profile local-db`.
+  # Not used by default: the app uses the PostgreSQL server set in .env.
+  postgres:
+    profiles: ["local-db"]
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - mise_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mise_pgdata:
