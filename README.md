@@ -14,6 +14,7 @@ daily nutrition targets that a built-in assistant helps you reach.
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Drizzle_ORM-4169E1?logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-Vitest-6E9F18?logo=vitest&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-B08D57)](LICENSE)
 
 ![The week plan on desktop](docs/screenshots/desktop-week.png)
 
@@ -34,6 +35,7 @@ daily nutrition targets that a built-in assistant helps you reach.
 - [Deployment](#deployment)
 - [Design](#design)
 - [Roadmap](#roadmap)
+- [License](#license)
 
 ## Features
 
@@ -232,3 +234,7 @@ gradients. Every screen works on a phone, with a tab bar and bottom sheets.
 
 Planned next steps are tracked in [NEXT_STEPS.md](NEXT_STEPS.md): editing and renaming
 recipes, a dark theme, and a Chef advisor backed by the Claude API.
+
+## License
+
+[MIT](LICENSE) © 2026 Mael Belliard
