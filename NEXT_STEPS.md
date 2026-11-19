@@ -1,6 +1,6 @@
 # Next steps
 
-Last updated: 2026-11-19.
+Last updated: 2026-11-19. Repository: https://github.com/maelbel/mise (private).
 
 ## Done: the app in the "Mael Belliard" design, in French
 
@@ -47,6 +47,5 @@ Known differences with the boards, on purpose:
 - **Chef on the Claude API.** Chef runs on built-in rules; the `ChefAdvisor`
   interface is ready for a Claude-based advisor (`ANTHROPIC_API_KEY` is
   reserved in `.env.example`).
-- **Git.** The project has no repository yet, so nothing is committed.
 - **Backup.** The dump taken before the accounts migration sits in a temporary
   folder; move it somewhere permanent if you want to keep it.
