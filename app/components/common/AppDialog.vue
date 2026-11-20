@@ -39,6 +39,8 @@ onMounted(() => {
   border: 0;
   border-top: 2px solid var(--c-fill-primary);
   padding: 0;
+  /* Centred, as browsers do by default (Tailwind's reset removes it). */
+  margin: auto;
   border-radius: var(--radius);
   width: min(600px, calc(100vw - 32px));
   max-height: calc(100vh - 48px);

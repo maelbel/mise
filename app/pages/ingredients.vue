@@ -199,6 +199,8 @@ const groups = computed(() => {
 }
 
 .table {
+  /* Not Tailwind's `table` utility (display: table). */
+  display: block;
   min-width: 640px;
 }
 

@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@pinia/nuxt', '@nuxt/fonts', '@nuxt/test-utils/module', 'nuxt-auth-utils'],
+  // Nuxt UI also registers @nuxt/fonts, @nuxt/icon and @nuxtjs/color-mode.
+  modules: ['@nuxt/ui', '@pinia/nuxt', '@nuxt/test-utils/module', 'nuxt-auth-utils'],
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   css: ['~/assets/css/main.css'],
@@ -13,6 +14,20 @@ export default defineNuxtConfig({
       { name: 'Josefin Sans', provider: 'google', weights: [300, 400] },
       { name: 'JetBrains Mono', provider: 'google', weights: [400] },
     ],
+  },
+  ui: {
+    // Light only for now: the dark theme is a later step.
+    colorMode: false,
+    theme: {
+      // Ink buttons and fields by default, as in the design system.
+      defaultVariants: { color: 'neutral' },
+    },
+  },
+  icon: {
+    // The design system's own line icons (app/assets/icons), as `i-mise-<name>`.
+    customCollections: [{ prefix: 'mise', dir: './app/assets/icons' }],
+    // Served with the app: no request to the Iconify API.
+    serverBundle: 'local',
   },
   app: {
     head: {
