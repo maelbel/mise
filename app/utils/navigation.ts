@@ -1,9 +1,10 @@
-import type { IconName } from '~/components/AppIcon.vue'
+/** Line icons from app/assets/icons used in the phone tab bar, shown as `i-mise-<name>`. */
+type NavIcon = 'calendar' | 'book' | 'jar' | 'fridge' | 'cart' | 'sparkle'
 
 export interface NavItem {
   to: string
   label: string
-  icon: IconName
+  icon: NavIcon
   /** Shown in the phone's tab bar. */
   mobile: boolean
   /** Other paths that light this entry up (on phones, Ingrédients sits under Réserve). */
