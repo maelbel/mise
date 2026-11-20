@@ -3,6 +3,9 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import DayMealList from '~/components/week/DayMealList.vue'
 import SuggestionView from '~/components/week/SuggestionView.vue'
 import RecipeCard from '~/components/recipes/RecipeCard.vue'
+import RecipeFormDialog from '~/components/recipes/RecipeFormDialog.vue'
+import IngredientFormDialog from '~/components/recipes/IngredientFormDialog.vue'
+import StockStepper from '~/components/storage/StockStepper.vue'
 import { matchesRecipe } from '~/composables/useRecipeFilters'
 import type { PlannedDay } from '~/composables/useWeekSummary'
 import { starterData } from '../fixtures'
@@ -51,11 +54,70 @@ describe('SuggestionView', () => {
   })
 })
 
+describe('StockStepper', () => {
+  const yogurt = { name: 'Yaourt grec', unit: 'g' as const, stock: 400 }
+
+  it('saves a typed amount on Enter', async () => {
+    const wrapper = await mountSuspended(StockStepper, { props: { ingredient: yogurt } })
+    const input = wrapper.find('input')
+    expect((input.element as HTMLInputElement).value).toBe('400')
+    await input.setValue('1 250,5')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('change')).toEqual([[1250.5]])
+  })
+
+  it('drops an amount it can\'t read, and Escape cancels', async () => {
+    const wrapper = await mountSuspended(StockStepper, { props: { ingredient: yogurt } })
+    const input = wrapper.find('input')
+    await input.setValue('-3')
+    await input.trigger('blur')
+    expect(wrapper.emitted('invalid')).toHaveLength(1)
+    expect((input.element as HTMLInputElement).value).toBe('400')
+    await input.setValue('900')
+    await input.trigger('keydown', { key: 'Escape' })
+    await input.trigger('blur')
+    expect((input.element as HTMLInputElement).value).toBe('400')
+    expect(wrapper.emitted('change')).toBeUndefined()
+  })
+
+  it('still steps with − and +, never below zero', async () => {
+    const wrapper = await mountSuspended(StockStepper, { props: { ingredient: { ...yogurt, stock: 50 } } })
+    const [minus, plus] = wrapper.findAll('button')
+    await plus!.trigger('click')
+    await minus!.trigger('click')
+    expect(wrapper.emitted('change')).toEqual([[150], [0]])
+  })
+
+  it('shows the new amount when the stock changes', async () => {
+    const wrapper = await mountSuspended(StockStepper, { props: { ingredient: yogurt } })
+    await wrapper.setProps({ ingredient: { ...yogurt, stock: 2.5 } })
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe('2,5')
+  })
+})
+
 describe('recipes', () => {
   it('marks the selected recipe card as pressed', async () => {
     const wrapper = await mountSuspended(RecipeCard, { props: { recipe: starterData().recipes[1]!, selected: true } })
     expect(wrapper.find('button').attributes('aria-pressed')).toBe('true')
     expect(wrapper.text()).toContain('Pâtes crémeuses au saumon')
+  })
+
+  it('opens the recipe form filled in when editing', async () => {
+    const salmon = starterData().recipes[1]!
+    const wrapper = await mountSuspended(RecipeFormDialog, { props: { open: true, recipe: salmon } })
+    expect(wrapper.text()).toContain('Modifier la recette')
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe(salmon.name)
+    expect(wrapper.findAll('select[id^="line-ing-"]')).toHaveLength(salmon.ingredients.length)
+  })
+
+  it('locks the unit of an ingredient in use', async () => {
+    const ingredient = starterData().ingredients[0]!
+    const wrapper = await mountSuspended(IngredientFormDialog, { props: { open: true, ingredient, unitLocked: true } })
+    expect(wrapper.text()).toContain('Modifier l’ingrédient')
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe(ingredient.name)
+    const unit = wrapper.findAll('select')[1]!
+    expect(unit.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('L’unité est fixée')
   })
 
   it('filters by search text, tags, diet, time and protein', () => {

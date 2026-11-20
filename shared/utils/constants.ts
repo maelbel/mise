@@ -29,5 +29,8 @@ export const SHELVES = [
   'Liquids',
 ] as const
 
+/** Largest stock quantity, in the ingredient's unit. */
+export const MAX_STOCK = 1_000_000
+
 export const MIN_PORTIONS = 1
 export const MAX_PORTIONS = 4

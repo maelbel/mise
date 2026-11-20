@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { isWeekStart } from '#shared/utils/week'
-import { DIFFICULTIES, MAX_PORTIONS, MEAL_SLOTS, MIN_PORTIONS, UNITS } from '#shared/utils/constants'
+import { DIFFICULTIES, MAX_PORTIONS, MAX_STOCK, MEAL_SLOTS, MIN_PORTIONS, UNITS } from '#shared/utils/constants'
 import { PASSWORD_MAX_LENGTH, passwordProblem } from '#shared/utils/password'
 import { ACTIVITY_LEVELS, ageOn, DIET_OPTIONS, PROFILE_LIMITS, todayIso } from '#shared/utils/targets'
 
@@ -22,7 +22,7 @@ export const slotUpdatesBodySchema = z.object({
   })).min(1).max(21),
 })
 
-export const stockBodySchema = z.object({ quantity: z.number().min(0).max(1_000_000) })
+export const stockBodySchema = z.object({ quantity: z.number().min(0).max(MAX_STOCK) })
 
 export const newIngredientBodySchema = z.object({
   name: z.string().trim().min(1).max(80),

@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Db } from '../../server/utils/db'
 import { seedUser } from '../../server/db/seed'
-import { createIngredient, listIngredients, setStock } from '../../server/services/ingredientService'
-import { createRecipe, listRecipes, UnknownIngredientError } from '../../server/services/recipeService'
+import { createIngredient, listIngredients, setStock, UnitLockedError, updateIngredient } from '../../server/services/ingredientService'
+import { createRecipe, listRecipes, UnknownIngredientError, updateRecipe } from '../../server/services/recipeService'
 import { getWeekPlan, UnknownRecipeError, updateSlots } from '../../server/services/planService'
 import { getShoppingList, resetChecks, setChecked } from '../../server/services/shoppingService'
 import { getSuggestions } from '../../server/services/chefService'
@@ -134,6 +134,81 @@ describe('recipes', () => {
       ingredients: [{ ingredientId: 999_999, quantity: 1 }],
     })).rejects.toBeInstanceOf(UnknownIngredientError)
     expect(await listRecipes(db, alice)).toHaveLength(before)
+  })
+})
+
+describe('editing recipes', () => {
+  const base = { timeMin: 10, difficulty: 'Easy' as const, kcal: 300, protein: 10, carbs: 40, fat: 8, tags: [], diet: [] }
+
+  it('renames a recipe, replaces its ingredients and keeps it in the plan', async () => {
+    const { ingredient } = await ids(alice)
+    const toast = await createRecipe(db, alice, { ...base, name: 'Toast', ingredients: [{ ingredientId: ingredient('Riz'), quantity: 50 }] })
+    await updateSlots(db, alice, NEXT_WEEK, [{ day: 2, slot: 'breakfast', recipeId: toast.id }])
+
+    const updated = await updateRecipe(db, alice, toast.id, {
+      ...base, name: 'Tartine aux épinards', kcal: 280, tags: ['Quick'],
+      ingredients: [{ ingredientId: ingredient('Spinach'), quantity: 40 }],
+    })
+
+    expect(updated).toMatchObject({ id: toast.id, name: 'Tartine aux épinards', kcal: 280, tags: ['Quick'] })
+    const listed = (await listRecipes(db, alice)).find((r) => r.id === toast.id)
+    expect(listed?.name).toBe('Tartine aux épinards')
+    expect(listed?.ingredients).toEqual([{ ingredientId: ingredient('Spinach'), quantity: 40 }])
+    const plan = await getWeekPlan(db, alice, NEXT_WEEK)
+    expect(plan.slots.find((s) => s.day === 2 && s.slot === 'breakfast')!.recipeId).toBe(toast.id)
+  })
+
+  it('refuses a name already taken or an unknown ingredient, and changes nothing', async () => {
+    const { recipe, ingredient } = await ids(alice)
+    const id = recipe('Tartine aux épinards')
+    await expect(updateRecipe(db, alice, id, { ...base, name: 'Soupe de lentilles corail', ingredients: [] })).rejects.toThrow()
+    await expect(updateRecipe(db, alice, id, { ...base, name: 'Ghost Toast', ingredients: [{ ingredientId: 999_999, quantity: 1 }] }))
+      .rejects.toBeInstanceOf(UnknownIngredientError)
+    const listed = (await listRecipes(db, alice)).find((r) => r.id === id)
+    expect(listed?.name).toBe('Tartine aux épinards')
+    expect(listed?.ingredients).toEqual([{ ingredientId: ingredient('Spinach'), quantity: 40 }])
+  })
+
+  it('never edits the other user\'s recipe or uses their ingredients', async () => {
+    const [a, b] = await Promise.all([ids(alice), ids(bob)])
+    expect(await updateRecipe(db, bob, a.recipe('Tartine aux épinards'), { ...base, name: 'Stolen', ingredients: [] })).toBeNull()
+    await expect(updateRecipe(db, bob, b.recipe('Soupe de lentilles corail'), {
+      ...base, name: 'Soupe de lentilles corail', ingredients: [{ ingredientId: a.ingredient('Riz'), quantity: 1 }],
+    })).rejects.toBeInstanceOf(UnknownIngredientError)
+    expect((await listRecipes(db, alice)).some((r) => r.name === 'Stolen')).toBe(false)
+  })
+})
+
+describe('editing ingredients', () => {
+  it('renames, moves and reprices an ingredient, keeping its stock', async () => {
+    const created = await createIngredient(db, alice, { name: 'Kale', shelf: 'Dairy', unit: 'g', priceCents: 500 })
+    const updated = await updateIngredient(db, alice, created.id, { name: 'Chou kale', shelf: 'Fruits & Vegetables', unit: 'g', priceCents: 650 })
+    expect(updated).toEqual({ id: created.id, name: 'Chou kale', shelf: 'Fruits & Vegetables', unit: 'g', priceCents: 650, stock: 0 })
+    await expect(updateIngredient(db, alice, created.id, { name: 'Riz', shelf: 'Dairy', unit: 'g', priceCents: 1 })).rejects.toThrow()
+  })
+
+  it('changes the unit only while no recipe and no stock use it', async () => {
+    const free = await createIngredient(db, alice, { name: 'Citron', shelf: 'Fruits & Vegetables', unit: 'g', priceCents: 300 })
+    expect((await updateIngredient(db, alice, free.id, { name: 'Citron', shelf: 'Fruits & Vegetables', unit: 'pcs', priceCents: 40 }))?.unit).toBe('pcs')
+
+    const stocked = await createIngredient(db, alice, { name: 'Farine', shelf: 'Dairy', unit: 'g', priceCents: 120 })
+    await setStock(db, alice, stocked.id, 500)
+    await expect(updateIngredient(db, alice, stocked.id, { name: 'Farine', shelf: 'Dairy', unit: 'pcs', priceCents: 120 }))
+      .rejects.toBeInstanceOf(UnitLockedError)
+
+    const { ingredient } = await ids(alice)
+    const spinach = ingredient('Spinach') // used by the omelette
+    await expect(updateIngredient(db, alice, spinach, { name: 'Spinach', shelf: 'Fruits & Vegetables', unit: 'pcs', priceCents: 600 }))
+      .rejects.toBeInstanceOf(UnitLockedError)
+    // Same unit: the rest can still change.
+    expect((await updateIngredient(db, alice, spinach, { name: 'Épinards', shelf: 'Fruits & Vegetables', unit: 'g', priceCents: 600 }))?.name).toBe('Épinards')
+    expect((await listIngredients(db, alice)).find((i) => i.id === stocked.id)).toMatchObject({ unit: 'g', stock: 500 })
+  })
+
+  it('never edits the other user\'s ingredient', async () => {
+    const a = await ids(alice)
+    expect(await updateIngredient(db, bob, a.ingredient('Riz'), { name: 'Mine', shelf: 'Dairy', unit: 'g', priceCents: 1 })).toBeNull()
+    expect((await listIngredients(db, alice)).some((i) => i.name === 'Riz')).toBe(true)
   })
 })
 

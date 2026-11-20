@@ -49,24 +49,54 @@ export async function foreignRecipeIds(db: Db, userId: number, ids: number[]): P
   return unique.filter((id) => !known.has(id))
 }
 
+type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
+
+/** Throws UnknownIngredientError unless every line uses one of the user's own ingredients. */
+async function assertOwnIngredients(tx: Tx, userId: number, lines: RecipeIngredient[]): Promise<void> {
+  const ids = [...new Set(lines.map((l) => l.ingredientId))]
+  if (!ids.length) return
+  // Someone else's id counts as unknown.
+  const found = await tx
+    .select({ id: ingredients.id })
+    .from(ingredients)
+    .where(and(inArray(ingredients.id, ids), eq(ingredients.userId, userId)))
+  const known = new Set(found.map((f) => f.id))
+  const missing = ids.filter((id) => !known.has(id))
+  if (missing.length) throw new UnknownIngredientError(missing)
+}
+
 export async function createRecipe(db: Db, userId: number, input: NewRecipe): Promise<Recipe> {
-  const ids = [...new Set(input.ingredients.map((l) => l.ingredientId))]
   return db.transaction(async (tx) => {
-    if (ids.length) {
-      // Only the user's own ingredients: someone else's id counts as unknown.
-      const found = await tx
-        .select({ id: ingredients.id })
-        .from(ingredients)
-        .where(and(inArray(ingredients.id, ids), eq(ingredients.userId, userId)))
-      const known = new Set(found.map((f) => f.id))
-      const missing = ids.filter((id) => !known.has(id))
-      if (missing.length) throw new UnknownIngredientError(missing)
-    }
+    await assertOwnIngredients(tx, userId, input.ingredients)
     const { ingredients: lines, ...fields } = input
     const [row] = await tx.insert(recipes).values({ userId, ...fields }).returning()
     if (!row) throw new Error('Recipe was not created')
     if (lines.length) {
       await tx.insert(recipeIngredients).values(lines.map((l) => ({ recipeId: row.id, ...l })))
+    }
+    const { userId: _owner, ...recipe } = row
+    return { ...recipe, ingredients: lines }
+  })
+}
+
+/**
+ * Replaces the fields and the ingredient list of one of the user's recipes.
+ * Returns null when it isn't theirs or doesn't exist. Planned meals keep pointing to it.
+ */
+export async function updateRecipe(db: Db, userId: number, recipeId: number, input: NewRecipe): Promise<Recipe | null> {
+  return db.transaction(async (tx) => {
+    const [owned] = await tx
+      .select({ id: recipes.id })
+      .from(recipes)
+      .where(and(eq(recipes.id, recipeId), eq(recipes.userId, userId)))
+    if (!owned) return null
+    await assertOwnIngredients(tx, userId, input.ingredients)
+    const { ingredients: lines, ...fields } = input
+    const [row] = await tx.update(recipes).set(fields).where(eq(recipes.id, recipeId)).returning()
+    if (!row) throw new Error('Recipe was not updated')
+    await tx.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, recipeId))
+    if (lines.length) {
+      await tx.insert(recipeIngredients).values(lines.map((l) => ({ recipeId, ...l })))
     }
     const { userId: _owner, ...recipe } = row
     return { ...recipe, ingredients: lines }

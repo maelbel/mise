@@ -3,8 +3,9 @@ import type { Difficulty, Recipe } from '#shared/types/domain'
 import { DIFFICULTIES } from '#shared/utils/constants'
 import { DIET_LABELS, difficultyLabel, TAG_LABELS, unitLabel } from '#shared/utils/labels'
 
-defineProps<{ open: boolean }>()
-const emit = defineEmits<{ close: [], created: [recipe: Recipe] }>()
+/** With a `recipe`, the dialog edits it; without, it creates a new one. */
+const props = defineProps<{ open: boolean, recipe?: Recipe | null }>()
+const emit = defineEmits<{ close: [], saved: [recipe: Recipe] }>()
 
 const recipesStore = useRecipesStore()
 const ingredientsStore = useIngredientsStore()
@@ -29,9 +30,24 @@ function blank() {
   }
 }
 
+function fromRecipe(recipe: Recipe): ReturnType<typeof blank> {
+  const { id: _id, ingredients, tags, diet, ...fields } = recipe
+  return {
+    ...fields,
+    tags: [...tags],
+    diet: [...diet],
+    lines: ingredients.length ? ingredients.map((l) => ({ ...l })) : blank().lines,
+  }
+}
+
 const form = reactive(blank())
 const saving = ref(false)
 const error = ref('')
+const editing = computed(() => !!props.recipe)
+
+watch(() => props.open, (open) => {
+  if (open) Object.assign(form, props.recipe ? fromRecipe(props.recipe) : blank())
+}, { immediate: true })
 
 function unitOf(ingredientId: number | null): string {
   const ingredient = ingredientId === null ? undefined : ingredientsStore.byId.get(ingredientId)
@@ -63,7 +79,7 @@ async function submit(): Promise<void> {
   saving.value = true
   error.value = ''
   try {
-    const recipe = await recipesStore.create({
+    const input = {
       name: form.name,
       timeMin: form.timeMin,
       difficulty: form.difficulty,
@@ -74,8 +90,9 @@ async function submit(): Promise<void> {
       tags: [...form.tags],
       diet: [...form.diet],
       ingredients: lines.map((l) => ({ ingredientId: l.ingredientId!, quantity: l.quantity! })),
-    })
-    emit('created', recipe)
+    }
+    const recipe = props.recipe ? await recipesStore.update(props.recipe.id, input) : await recipesStore.create(input)
+    emit('saved', recipe)
     close()
   } catch (e) {
     const status = (e as { statusCode?: number }).statusCode
@@ -87,7 +104,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog :open="open" title="Nouvelle recette" @close="close">
+  <AppDialog :open="open" :title="editing ? 'Modifier la recette' : 'Nouvelle recette'" @close="close">
     <form class="form" novalidate @submit.prevent="submit">
       <label class="field">Nom de la recette<input v-model.trim="form.name" class="input" maxlength="120" placeholder="Ex. : curry de pois chiches"></label>
       <div class="grid">
@@ -141,7 +158,7 @@ async function submit(): Promise<void> {
       <p v-if="error" class="alert" role="alert">{{ error }}</p>
       <div class="form__actions">
         <button type="button" class="btn" @click="close">Annuler</button>
-        <button type="submit" class="btn btn--primary" :disabled="saving">Enregistrer la recette</button>
+        <button type="submit" class="btn btn--primary" :disabled="saving">{{ editing ? 'Enregistrer les modifications' : 'Enregistrer la recette' }}</button>
       </div>
     </form>
   </AppDialog>

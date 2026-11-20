@@ -232,8 +232,8 @@ gradients. Every screen works on a phone, with a tab bar and bottom sheets.
 
 ## Roadmap
 
-Planned next steps are tracked in [NEXT_STEPS.md](NEXT_STEPS.md): editing and renaming
-recipes, a dark theme, and a Chef advisor backed by the Claude API.
+Planned next steps are tracked in [NEXT_STEPS.md](NEXT_STEPS.md): a dark theme, and a Chef
+advisor backed by the Claude API.
 
 ## License
 
