@@ -115,7 +115,20 @@ const paces = computed(() => (['slow', 'normal', 'fast'] as const).map((id) => {
   const pct = GOAL_ADJUSTMENT[form.goal][id]
   return { id, label: `${{ slow: 'Doucement', normal: 'Normal', fast: 'Rapide' }[id]} · ${pct > 0 ? '+' : '−'}${Math.abs(pct)} %` }
 }))
-const TIMES = [{ v: '', l: 'Pas de limite' }, { v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '45', l: '45 min' }, { v: '60', l: '1 h' }]
+/** Weekday cooking time; "none" stands for no limit (a select option can't be empty). */
+const TIMES = [
+  { value: 'none', label: 'Pas de limite' },
+  { value: '15', label: '15 min' },
+  { value: '30', label: '30 min' },
+  { value: '45', label: '45 min' },
+  { value: '60', label: '1 h' },
+]
+const weekdayTime = computed({
+  get: () => form.weekdayMaxMinutes || 'none',
+  set: (v: string) => {
+    form.weekdayMaxMinutes = v === 'none' ? '' : v
+  },
+})
 
 function toggleDiet(d: string): void {
   form.diet = form.diet.includes(d) ? form.diet.filter((x) => x !== d) : [...form.diet, d]
@@ -148,6 +161,20 @@ async function save(): Promise<void> {
   }
 }
 
+/** A form section: a rule above, then its eyebrow, title and fields. */
+const SECTION = 'flex flex-col gap-4 border-t border-default pt-6'
+
+const targetMacros = computed(() => {
+  const t = preview.value.targets
+  return t
+    ? [
+        { label: 'Protéines', value: t.protein, accent: true },
+        { label: 'Glucides', value: t.carbs },
+        { label: 'Lipides', value: t.fat },
+      ]
+    : []
+})
+
 /** On phones the calculation folds away under the targets card. */
 const calcOpen = ref(false)
 
@@ -171,483 +198,235 @@ async function changePassword(): Promise<void> {
 </script>
 
 <template>
-  <div class="page">
+  <div class="flex flex-col gap-6 md:gap-10">
     <PageHeader eyebrow="Mon compte" title="Profil" lead="Mise s’en sert pour calculer vos calories et vos protéines du jour. Vous seul le voyez." />
 
-    <p v-if="loadError" class="alert" role="alert">Impossible de charger votre profil. Rechargez la page.</p>
+    <UAlert v-if="loadError" color="error" role="alert" title="Impossible de charger votre profil. Rechargez la page." />
 
-    <div v-else class="layout">
-      <div class="main">
-        <section class="section" aria-labelledby="pf-body">
-          <p class="eyebrow">Corps</p>
-          <h2 id="pf-body" class="section-title">Pour estimer vos besoins</h2>
-          <div class="grid">
-            <label class="field">Date de naissance<input v-model="form.birthDate" class="input" type="date"></label>
-            <label class="field">Taille (cm)<input v-model="form.heightCm" class="input tabular" inputmode="decimal"></label>
-            <label class="field">Poids (kg)<input v-model="form.weightKg" class="input tabular" inputmode="decimal"></label>
+    <!-- Phones: targets card and calculation first, then the form, then saving. -->
+    <div v-else class="flex flex-wrap items-start gap-16 max-md:flex-col max-md:items-stretch max-md:gap-6">
+      <div class="flex min-w-0 flex-[999_1_560px] flex-col gap-10 max-md:mt-4 max-md:w-full">
+        <section :class="SECTION" aria-labelledby="pf-body">
+          <AppEyebrow class="-mb-2">Corps</AppEyebrow>
+          <h2 id="pf-body" class="text-xl font-medium leading-[1.3]">Pour estimer vos besoins</h2>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,200px),1fr))] gap-4">
+            <UFormField label="Date de naissance">
+              <UInput v-model="form.birthDate" class="w-full" type="date" />
+            </UFormField>
+            <UFormField label="Taille (cm)">
+              <UInput v-model="form.heightCm" class="w-full" :ui="{ base: 'font-mono' }" inputmode="decimal" />
+            </UFormField>
+            <UFormField label="Poids (kg)">
+              <UInput v-model="form.weightKg" class="w-full" :ui="{ base: 'font-mono' }" inputmode="decimal" />
+            </UFormField>
           </div>
-          <div class="field">
+          <div class="flex flex-col gap-2 text-sm text-muted">
             <span id="pf-sex">Sexe, pour la formule de calcul</span>
-            <div class="chips" role="radiogroup" aria-labelledby="pf-sex">
-              <button v-for="s in SEXES" :key="s.id" type="button" role="radio" class="toggle" :aria-checked="form.sex === s.id" @click="form.sex = s.id">{{ s.label }}</button>
+            <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="pf-sex">
+              <AppToggle v-for="s in SEXES" :key="s.id" radio :pressed="form.sex === s.id" @click="form.sex = s.id">{{ s.label }}</AppToggle>
             </div>
-            <p v-if="form.sex === 'unspecified'" class="hint">Mise utilise la moyenne des deux formules. Vous pouvez aussi saisir vos propres objectifs.</p>
+            <p v-if="form.sex === 'unspecified'">Mise utilise la moyenne des deux formules. Vous pouvez aussi saisir vos propres objectifs.</p>
           </div>
-          <ul v-if="problems.length" class="alert problems" role="alert">
-            <li v-for="p in problems" :key="p">{{ p }}</li>
-          </ul>
+          <UAlert v-if="problems.length" color="error" role="alert">
+            <template #description>
+              <ul class="m-0 list-none p-0">
+                <li v-for="p in problems" :key="p">{{ p }}</li>
+              </ul>
+            </template>
+          </UAlert>
         </section>
 
-        <section class="section" aria-labelledby="pf-activity">
-          <p class="eyebrow">Activité</p>
-          <h2 id="pf-activity" class="section-title">Une semaine habituelle</h2>
-          <div class="options" role="radiogroup" aria-labelledby="pf-activity">
-            <button
-              v-for="(level, i) in ACTIVITY_LEVELS" :key="level.label" type="button" role="radio" class="option"
-              :aria-checked="form.activity === i" @click="form.activity = i"
+        <section :class="SECTION" aria-labelledby="pf-activity">
+          <AppEyebrow class="-mb-2">Activité</AppEyebrow>
+          <h2 id="pf-activity" class="text-xl font-medium leading-[1.3]">Une semaine habituelle</h2>
+          <div class="flex flex-col border-t border-default" role="radiogroup" aria-labelledby="pf-activity">
+            <UButton
+              v-for="(level, i) in ACTIVITY_LEVELS"
+              :key="level.label"
+              variant="ghost"
+              role="radio"
+              class="min-h-14 w-full gap-4 rounded-none border-b border-default px-4 py-2 text-left text-default hover:bg-transparent"
+              :class="{ 'bg-muted hover:bg-muted': form.activity === i }"
+              :aria-checked="form.activity === i"
+              @click="form.activity = i"
             >
-              <span class="option__dot" aria-hidden="true" />
-              <span class="option__text"><strong>{{ level.label }}</strong><span>{{ level.description }}</span></span>
-            </button>
+              <span class="size-4 shrink-0 rounded-full border" :class="form.activity === i ? 'border-[5px] border-inverted' : 'border-accented'" aria-hidden="true" />
+              <span class="flex flex-col gap-0.5 text-sm text-muted">
+                <strong class="text-base font-medium text-default">{{ level.label }}</strong>
+                <span>{{ level.description }}</span>
+              </span>
+            </UButton>
           </div>
         </section>
 
-        <section class="section" aria-labelledby="pf-goal">
-          <p class="eyebrow">Objectif</p>
-          <h2 id="pf-goal" class="section-title">Ce que vous visez</h2>
-          <div class="chips" role="radiogroup" aria-labelledby="pf-goal">
-            <button v-for="g in GOALS" :key="g.id" type="button" role="radio" class="toggle" :aria-checked="form.goal === g.id" @click="form.goal = g.id">{{ g.label }}</button>
+        <section :class="SECTION" aria-labelledby="pf-goal">
+          <AppEyebrow class="-mb-2">Objectif</AppEyebrow>
+          <h2 id="pf-goal" class="text-xl font-medium leading-[1.3]">Ce que vous visez</h2>
+          <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="pf-goal">
+            <AppToggle v-for="g in GOALS" :key="g.id" radio :pressed="form.goal === g.id" @click="form.goal = g.id">{{ g.label }}</AppToggle>
           </div>
-          <div v-if="form.goal !== 'maintain'" class="field">
+          <div v-if="form.goal !== 'maintain'" class="flex flex-col gap-2 text-sm text-muted">
             <span id="pf-pace">Rythme</span>
-            <div class="chips" role="radiogroup" aria-labelledby="pf-pace">
-              <button v-for="p in paces" :key="p.id" type="button" role="radio" class="toggle" :aria-checked="form.pace === p.id" @click="form.pace = p.id">{{ p.label }}</button>
+            <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="pf-pace">
+              <AppToggle v-for="p in paces" :key="p.id" radio :pressed="form.pace === p.id" @click="form.pace = p.id">{{ p.label }}</AppToggle>
             </div>
           </div>
         </section>
 
-        <section class="section" aria-labelledby="pf-food">
-          <p class="eyebrow">Alimentation</p>
-          <h2 id="pf-food" class="section-title">Ce que Chef doit respecter</h2>
-          <div class="field">
+        <section :class="SECTION" aria-labelledby="pf-food">
+          <AppEyebrow class="-mb-2">Alimentation</AppEyebrow>
+          <h2 id="pf-food" class="text-xl font-medium leading-[1.3]">Ce que Chef doit respecter</h2>
+          <div class="flex flex-col gap-2 text-sm text-muted">
             <span id="pf-diet">Régime</span>
-            <div class="chips" role="group" aria-labelledby="pf-diet">
-              <button v-for="d in DIET_OPTIONS" :key="d" type="button" class="toggle" :aria-pressed="form.diet.includes(d)" @click="toggleDiet(d)">{{ dietLabel(d) }}</button>
+            <div class="flex flex-wrap gap-2" role="group" aria-labelledby="pf-diet">
+              <AppToggle v-for="d in DIET_OPTIONS" :key="d" :pressed="form.diet.includes(d)" @click="toggleDiet(d)">{{ dietLabel(d) }}</AppToggle>
             </div>
           </div>
-          <div class="field">
+          <div class="flex flex-col gap-2 text-sm text-muted">
             <label for="pf-avoid">Allergies et aliments à éviter</label>
-            <ul v-if="form.avoid.length" class="avoid">
-              <li v-for="a in form.avoid" :key="a" class="avoid__tag">
+            <ul v-if="form.avoid.length" class="m-0 flex list-none flex-wrap gap-2 p-0">
+              <li v-for="a in form.avoid" :key="a" class="inline-flex items-center gap-1 rounded-sm border border-accented pl-4 text-[15px] text-default">
                 {{ a }}
-                <button type="button" class="avoid__remove" :aria-label="`Retirer ${a}`" @click="form.avoid = form.avoid.filter((x) => x !== a)"><AppIcon name="close" :size="14" /></button>
+                <UButton
+                  variant="ghost"
+                  icon="i-mise-close"
+                  square
+                  class="h-[42px] w-11 text-default hover:bg-transparent"
+                  :ui="{ leadingIcon: 'size-3.5' }"
+                  :aria-label="`Retirer ${a}`"
+                  @click="form.avoid = form.avoid.filter((x) => x !== a)"
+                />
               </li>
             </ul>
-            <div class="row">
-              <input id="pf-avoid" v-model="form.avoidDraft" class="input" placeholder="Ex. : arachides" @keydown.enter.prevent="addAvoid">
-              <button type="button" class="btn" @click="addAvoid">Ajouter</button>
+            <div class="flex flex-wrap gap-2">
+              <UInput id="pf-avoid" v-model="form.avoidDraft" class="flex-[1_1_200px]" placeholder="Ex. : arachides" @keydown.enter.prevent="addAvoid" />
+              <UButton label="Ajouter" @click="addAvoid" />
             </div>
           </div>
         </section>
 
-        <section class="section" aria-labelledby="pf-plan">
-          <p class="eyebrow">Organisation</p>
-          <h2 id="pf-plan" class="section-title">Votre temps et votre budget</h2>
-          <div class="grid">
-            <label class="field">Temps de cuisine en semaine
-              <select v-model="form.weekdayMaxMinutes" class="input">
-                <option v-for="t in TIMES" :key="t.v" :value="t.v">{{ t.l }}</option>
-              </select>
-            </label>
-            <label class="field">Budget courses par semaine (€)<input v-model="form.weeklyBudget" class="input tabular" inputmode="decimal"></label>
+        <section :class="SECTION" aria-labelledby="pf-plan">
+          <AppEyebrow class="-mb-2">Organisation</AppEyebrow>
+          <h2 id="pf-plan" class="text-xl font-medium leading-[1.3]">Votre temps et votre budget</h2>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,200px),1fr))] gap-4">
+            <UFormField label="Temps de cuisine en semaine">
+              <USelect v-model="weekdayTime" class="w-full" :items="TIMES" />
+            </UFormField>
+            <UFormField label="Budget courses par semaine (€)">
+              <UInput v-model="form.weeklyBudget" class="w-full" :ui="{ base: 'font-mono' }" inputmode="decimal" />
+            </UFormField>
           </div>
         </section>
 
-        <section class="section" aria-labelledby="pf-account">
-          <p class="eyebrow">Compte</p>
-          <h2 id="pf-account" class="section-title">Connexion</h2>
-          <dl class="account-row"><dt>E-mail de connexion</dt><dd class="tabular">{{ user?.email }}</dd></dl>
-          <p v-if="pw.done" role="status" class="notice">{{ pw.done }}</p>
-          <button v-if="!pw.open" type="button" class="btn section__btn" @click="pw.open = true; pw.done = ''">Changer le mot de passe</button>
-          <form v-else class="pw" novalidate @submit.prevent="changePassword">
-            <label class="field">Mot de passe actuel<input v-model="pw.current" class="input" type="password" autocomplete="current-password"></label>
-            <label class="field">Nouveau mot de passe ({{ PASSWORD_MIN_LENGTH }} caractères ou plus)<input v-model="pw.next" class="input" type="password" autocomplete="new-password"></label>
-            <label class="field">Confirmez-le<input v-model="pw.again" class="input" type="password" autocomplete="new-password"></label>
-            <p v-if="pw.error" class="alert" role="alert">{{ pw.error }}</p>
-            <div class="row">
-              <button type="submit" class="btn btn--primary" :disabled="pw.busy">Enregistrer</button>
-              <button type="button" class="btn" @click="pw.open = false; pw.error = ''">Annuler</button>
+        <section :class="SECTION" aria-labelledby="pf-account">
+          <AppEyebrow class="-mb-2">Compte</AppEyebrow>
+          <h2 id="pf-account" class="text-xl font-medium leading-[1.3]">Connexion</h2>
+          <dl class="m-0 flex flex-wrap justify-between gap-4 text-sm">
+            <dt class="text-muted">E-mail de connexion</dt>
+            <dd class="m-0 font-mono">{{ user?.email }}</dd>
+          </dl>
+          <UAlert v-if="pw.done" role="status" :title="pw.done" />
+          <UButton v-if="!pw.open" label="Changer le mot de passe" class="self-start" @click="pw.open = true; pw.done = ''" />
+          <form v-else class="flex flex-col gap-4 rounded-sm bg-muted p-4" novalidate @submit.prevent="changePassword">
+            <UFormField label="Mot de passe actuel">
+              <UInput v-model="pw.current" class="w-full" type="password" autocomplete="current-password" />
+            </UFormField>
+            <UFormField :label="`Nouveau mot de passe (${PASSWORD_MIN_LENGTH} caractères ou plus)`">
+              <UInput v-model="pw.next" class="w-full" type="password" autocomplete="new-password" />
+            </UFormField>
+            <UFormField label="Confirmez-le">
+              <UInput v-model="pw.again" class="w-full" type="password" autocomplete="new-password" />
+            </UFormField>
+            <UAlert v-if="pw.error" color="error" role="alert" :title="pw.error" />
+            <div class="flex flex-wrap gap-2">
+              <UButton type="submit" variant="solid" label="Enregistrer" :disabled="pw.busy" />
+              <UButton label="Annuler" @click="pw.open = false; pw.error = ''" />
             </div>
           </form>
-          <div class="row">
-            <NuxtLink v-if="isAdmin" to="/family" class="btn">Gérer la famille <AppIcon name="chevronRight" :size="16" /></NuxtLink>
-            <button type="button" class="btn" @click="logout"><AppIcon name="logout" :size="16" />Se déconnecter</button>
+          <div class="flex flex-wrap gap-2">
+            <UButton v-if="isAdmin" to="/family" label="Gérer la famille" trailing-icon="i-mise-chevron-right" />
+            <UButton icon="i-mise-logout" label="Se déconnecter" @click="logout" />
           </div>
         </section>
       </div>
 
-      <aside class="side">
-        <section class="targets ink-panel" aria-label="Vos objectifs du jour">
-          <p class="eyebrow targets__source">{{ form.manual ? 'Vos objectifs' : 'Objectifs calculés' }}</p>
+      <aside class="flex min-w-0 flex-[1_1_360px] flex-col gap-6 max-md:contents">
+        <section class="flex flex-col gap-4 rounded-sm bg-inverted p-6 text-limestone-200 max-md:order-[-3]" aria-label="Vos objectifs du jour">
+          <AppEyebrow light>{{ form.manual ? 'Vos objectifs' : 'Objectifs calculés' }}</AppEyebrow>
           <template v-if="preview.targets">
-            <p class="targets__kcal mono">{{ formatNumber(preview.targets.kcal) }} <small>kcal par jour</small></p>
-            <div class="targets__macros">
-              <div><span>Protéines</span><strong class="mono targets__protein">{{ preview.targets.protein }} g</strong></div>
-              <div><span>Glucides</span><strong class="mono">{{ preview.targets.carbs }} g</strong></div>
-              <div><span>Lipides</span><strong class="mono">{{ preview.targets.fat }} g</strong></div>
+            <p class="font-mono text-[40px] leading-none max-md:text-[32px]">
+              {{ formatNumber(preview.targets.kcal) }} <small class="text-xs text-limestone-500">kcal par jour</small>
+            </p>
+            <div class="grid grid-cols-3 border-t border-limestone-800">
+              <div
+                v-for="(m, i) in targetMacros"
+                :key="m.label"
+                class="flex flex-col gap-1 pt-4 pr-2 text-sm text-limestone-500"
+                :class="i ? 'border-l border-limestone-800 pl-4' : 'pl-0'"
+              >
+                <span>{{ m.label }}</span>
+                <strong class="font-mono text-base font-normal" :class="m.accent ? 'text-brass-300' : 'text-limestone-200'">{{ m.value }} g</strong>
+              </div>
             </div>
           </template>
-          <p v-else class="targets__empty">Renseignez votre corps et votre activité pour voir vos objectifs.</p>
+          <p v-else class="text-[15px] text-limestone-500">Renseignez votre corps et votre activité pour voir vos objectifs.</p>
         </section>
 
-        <button v-if="steps.length && !form.manual" type="button" class="btn mobile-only calc-toggle" :aria-expanded="calcOpen" @click="calcOpen = !calcOpen">
-          {{ calcOpen ? 'Masquer le calcul' : 'Voir le calcul' }}
-        </button>
-        <section v-if="steps.length && !form.manual" class="section calc" :class="{ 'calc--closed': !calcOpen }" aria-labelledby="pf-how">
-          <h2 id="pf-how" class="section-title">Comment c’est calculé</h2>
-          <ol class="steps">
-            <li v-for="s in steps" :key="s.label"><span><strong>{{ s.label }}</strong><small>{{ s.how }}</small></span><span class="tabular">{{ s.value }}</span></li>
+        <UButton
+          v-if="steps.length && !form.manual"
+          :label="calcOpen ? 'Masquer le calcul' : 'Voir le calcul'"
+          class="justify-center md:hidden max-md:order-[-2]"
+          :aria-expanded="calcOpen"
+          @click="calcOpen = !calcOpen"
+        />
+        <section
+          v-if="steps.length && !form.manual"
+          :class="[SECTION, 'max-md:order-[-1]', { 'max-md:hidden': !calcOpen }]"
+          aria-labelledby="pf-how"
+        >
+          <h2 id="pf-how" class="text-xl font-medium leading-[1.3]">Comment c’est calculé</h2>
+          <ol class="m-0 list-none border-t border-default p-0">
+            <li v-for="s in steps" :key="s.label" class="flex items-baseline justify-between gap-4 border-b border-default py-2 text-[15px]">
+              <span class="flex flex-col gap-0.5">
+                <span>{{ s.label }}</span>
+                <small class="text-[13px] text-muted">{{ s.how }}</small>
+              </span>
+              <span class="shrink-0 font-mono text-[13px]">{{ s.value }}</span>
+            </li>
           </ol>
         </section>
 
-        <section class="section section--plain" aria-label="Objectifs personnalisés">
-          <button type="button" class="btn" :aria-pressed="form.manual" @click="form.manual = !form.manual">
-            {{ form.manual ? 'Revenir au calcul' : 'Saisir mes propres objectifs' }}
-          </button>
+        <section class="flex flex-col gap-4 max-md:order-1" aria-label="Objectifs personnalisés">
+          <UButton
+            :label="form.manual ? 'Revenir au calcul' : 'Saisir mes propres objectifs'"
+            class="justify-center"
+            :aria-pressed="form.manual"
+            @click="form.manual = !form.manual"
+          />
           <template v-if="form.manual">
-            <div class="grid grid--two">
-              <label class="field">Calories (kcal)<input v-model="form.targetKcal" class="input tabular" inputmode="numeric" :placeholder="text(preview.breakdown?.calculated.kcal ?? null)"></label>
-              <label class="field">Protéines (g)<input v-model="form.targetProtein" class="input tabular" inputmode="numeric" :placeholder="text(preview.breakdown?.calculated.protein ?? null)"></label>
-              <label class="field">Glucides (g)<input v-model="form.targetCarbs" class="input tabular" inputmode="numeric"></label>
-              <label class="field">Lipides (g)<input v-model="form.targetFat" class="input tabular" inputmode="numeric"></label>
+            <div class="grid grid-cols-2 gap-4">
+              <UFormField label="Calories (kcal)">
+                <UInput v-model="form.targetKcal" class="w-full" :ui="{ base: 'font-mono' }" inputmode="numeric" :placeholder="text(preview.breakdown?.calculated.kcal ?? null)" />
+              </UFormField>
+              <UFormField label="Protéines (g)">
+                <UInput v-model="form.targetProtein" class="w-full" :ui="{ base: 'font-mono' }" inputmode="numeric" :placeholder="text(preview.breakdown?.calculated.protein ?? null)" />
+              </UFormField>
+              <UFormField label="Glucides (g)">
+                <UInput v-model="form.targetCarbs" class="w-full" :ui="{ base: 'font-mono' }" inputmode="numeric" />
+              </UFormField>
+              <UFormField label="Lipides (g)">
+                <UInput v-model="form.targetFat" class="w-full" :ui="{ base: 'font-mono' }" inputmode="numeric" />
+              </UFormField>
             </div>
-            <p class="hint">Un champ vide garde la valeur calculée.</p>
+            <p class="text-sm text-muted">Un champ vide garde la valeur calculée.</p>
           </template>
         </section>
 
-        <p v-if="saveMessage" role="status" class="notice">{{ saveMessage }}</p>
-        <p v-if="saveError" role="alert" class="alert">{{ saveError }}</p>
-        <button type="button" class="btn btn--primary" :disabled="saving" @click="save">{{ saving ? 'Enregistrement…' : 'Enregistrer le profil' }}</button>
-        <p class="hint">Estimation indicative, pas un avis médical.</p>
+        <UAlert v-if="saveMessage" role="status" :title="saveMessage" class="max-md:order-1" />
+        <UAlert v-if="saveError" color="error" role="alert" :title="saveError" class="max-md:order-1" />
+        <UButton variant="solid" class="justify-center max-md:order-1" :disabled="saving" :label="saving ? 'Enregistrement…' : 'Enregistrer le profil'" @click="save" />
+        <p class="text-sm text-muted max-md:order-1">Estimation indicative, pas un avis médical.</p>
       </aside>
     </div>
   </div>
 </template>
-
-<style scoped>
-.layout {
-  gap: 64px;
-}
-
-.main {
-  flex: 999 1 560px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-}
-
-.side {
-  flex: 1 1 360px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.section {
-  padding-top: 24px;
-  border-top: 1px solid var(--c-line);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.section--plain {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.section__btn {
-  align-self: flex-start;
-}
-
-.section > .eyebrow {
-  margin-bottom: -8px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
-  gap: 16px;
-}
-
-.grid--two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.row .input {
-  flex: 1 1 200px;
-}
-
-.options {
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--c-line);
-}
-
-.option {
-  width: 100%;
-  min-height: 56px;
-  padding: 8px 16px;
-  border: 0;
-  border-bottom: 1px solid var(--c-line);
-  border-radius: 0;
-  background: transparent;
-  color: var(--c-text);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.option[aria-checked='true'] {
-  background: var(--c-surface);
-}
-
-.option__dot {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid var(--c-line-strong);
-}
-
-.option[aria-checked='true'] .option__dot {
-  border: 5px solid var(--c-text);
-}
-
-.option__text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 14px;
-  color: var(--c-text-2);
-}
-
-.option__text strong {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--c-text);
-}
-
-.problems {
-  margin: 0;
-  list-style: none;
-}
-
-.avoid {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.avoid__tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding-left: 16px;
-  border: 1px solid var(--c-line-strong);
-  border-radius: var(--radius);
-  font-size: 15px;
-}
-
-.avoid__remove {
-  width: 44px;
-  height: 42px;
-  border: 0;
-  background: transparent;
-  color: var(--c-text);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.account-row {
-  margin: 0;
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  font-size: 14px;
-}
-
-.account-row dt {
-  color: var(--c-text-2);
-}
-
-.account-row dd {
-  margin: 0;
-  font-family: var(--font-mono);
-}
-
-.pw {
-  padding: 16px;
-  border-radius: var(--radius);
-  background: var(--c-surface);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.targets {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.targets__source {
-  color: var(--c-mark-light);
-}
-
-.targets__kcal {
-  font-size: 40px;
-  line-height: 1;
-}
-
-.targets__kcal small {
-  font-size: 12px;
-  color: var(--c-stone);
-}
-
-.targets__macros {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid var(--c-text-2);
-}
-
-.targets__macros div {
-  padding: 16px 8px 0 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 14px;
-  color: var(--c-stone);
-}
-
-.targets__macros div:first-child {
-  padding-left: 0;
-}
-
-.targets__macros div + div {
-  border-left: 1px solid var(--c-text-2);
-}
-
-.targets__macros strong {
-  font-size: 16px;
-  font-weight: 400;
-  color: var(--c-surface);
-}
-
-.targets__macros .targets__protein {
-  color: var(--c-mark-light);
-}
-
-.targets__empty {
-  font-size: 15px;
-  color: var(--c-stone);
-}
-
-.steps {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--c-line);
-}
-
-.steps li {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--c-line);
-  font-size: 15px;
-}
-
-.steps li > span:first-child {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.steps strong {
-  font-weight: 400;
-}
-
-.steps small {
-  font-size: 13px;
-  color: var(--c-text-2);
-}
-
-.steps li > span:last-child {
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-@media (max-width: 899px) {
-  /* Phones: targets card and calculation first, then the form, then saving. */
-  .layout {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 24px;
-  }
-
-  .side {
-    display: contents;
-  }
-
-  .main {
-    width: 100%;
-    order: 0;
-    margin-top: 16px;
-  }
-
-  .targets {
-    order: -3;
-  }
-
-  .calc-toggle {
-    order: -2;
-  }
-
-  .calc {
-    order: -1;
-  }
-
-  .calc--closed {
-    display: none;
-  }
-
-  .side > *:not(.targets):not(.calc-toggle):not(.calc) {
-    order: 1;
-  }
-
-  .targets__kcal {
-    font-size: 32px;
-  }
-}
-</style>

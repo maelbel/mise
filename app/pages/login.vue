@@ -42,67 +42,34 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <form class="form" novalidate @submit.prevent="submit">
-    <div class="form__head">
-      <p class="eyebrow">Bon retour</p>
-      <h1 class="page-title">Connexion</h1>
+  <form class="flex flex-col gap-6" novalidate @submit.prevent="submit">
+    <div class="flex flex-col gap-2">
+      <AppEyebrow>Bon retour</AppEyebrow>
+      <h1 class="text-[clamp(32px,5vw,48px)] font-medium leading-[1.1] tracking-[-0.01em] text-balance">Connexion</h1>
     </div>
 
-    <label class="field">E-mail
-      <input v-model="email" class="input" type="email" autocomplete="username" inputmode="email" placeholder="vous@exemple.fr">
-    </label>
+    <UFormField label="E-mail">
+      <UInput v-model="email" class="w-full" type="email" autocomplete="username" inputmode="email" placeholder="vous@exemple.fr" />
+    </UFormField>
 
-    <label class="field">Mot de passe
-      <span class="password">
-        <input v-model="password" class="input" :type="showPassword ? 'text' : 'password'" autocomplete="current-password">
-        <button type="button" class="btn password__toggle" :aria-pressed="showPassword" @click="showPassword = !showPassword">
-          {{ showPassword ? 'Masquer' : 'Afficher' }}
-        </button>
-      </span>
-    </label>
+    <UFormField label="Mot de passe">
+      <div class="flex gap-2">
+        <UInput v-model="password" class="w-full" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" />
+        <UButton
+          :label="showPassword ? 'Masquer' : 'Afficher'"
+          class="min-w-24 justify-center text-sm md:text-sm"
+          :aria-pressed="showPassword"
+          @click="showPassword = !showPassword"
+        />
+      </div>
+    </UFormField>
 
-    <p v-if="error" class="alert" role="alert">{{ error }}</p>
+    <UAlert v-if="error" color="error" role="alert" :title="error" />
 
-    <button type="submit" class="btn btn--primary form__submit" :disabled="busy">{{ busy ? 'Connexion…' : 'Se connecter' }}</button>
+    <UButton type="submit" variant="solid" block class="min-h-12" :disabled="busy" :label="busy ? 'Connexion…' : 'Se connecter'" />
 
-    <p class="form__note">
+    <p class="border-t border-default pt-4 text-[15px] text-muted">
       Pas encore de compte, ou mot de passe oublié ? Demandez à l’administrateur de la famille : il crée les comptes et peut vous donner un nouveau mot de passe.
     </p>
   </form>
 </template>
-
-<style scoped>
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.form__head {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.password {
-  display: flex;
-  gap: 8px;
-}
-
-.password__toggle {
-  min-width: 96px;
-  font-size: 14px;
-}
-
-.form__submit {
-  min-height: 48px;
-}
-
-.form__note {
-  padding-top: 16px;
-  border-top: 1px solid var(--c-line);
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--c-text-2);
-}
-</style>

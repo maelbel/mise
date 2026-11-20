@@ -52,194 +52,74 @@ const cost = (id: number) => {
 </script>
 
 <template>
-  <div class="page">
+  <div class="flex flex-col gap-6 md:gap-10">
     <PageHeader :eyebrow="plural(recipesStore.recipes.length, 'recette')" title="Vos recettes" lead="Ce que vous savez cuisiner, et ce que ça coûte.">
-      <button type="button" class="btn btn--primary" @click="openForm(null)"><AppIcon name="plus" :size="16" />Nouvelle recette</button>
+      <UButton variant="solid" icon="i-mise-plus" label="Nouvelle recette" @click="openForm(null)" />
     </PageHeader>
 
-    <p v-if="error" class="alert" role="alert">Impossible de charger les recettes. Vérifiez que la base de données tourne.</p>
+    <UAlert v-if="error" color="error" role="alert" title="Impossible de charger les recettes. Vérifiez que la base de données tourne." />
 
     <template v-else>
-      <div class="toolbar">
-        <label class="search">
-          <span class="visually-hidden">Rechercher une recette</span>
-          <AppIcon name="search" :size="16" class="search__icon" />
-          <input v-model="query" type="search" class="input search__input" placeholder="Rechercher une recette">
-        </label>
-        <div role="group" aria-label="Filtres" class="chips filters">
-          <button v-for="f in RECIPE_FILTERS" :key="f.id" type="button" class="toggle" :aria-pressed="filter === f.id" @click="filter = f.id">
-            {{ f.label }}
-          </button>
+      <div class="flex flex-wrap items-center gap-4 md:-mb-4">
+        <UInput
+          v-model="query"
+          type="search"
+          icon="i-mise-search"
+          placeholder="Rechercher une recette"
+          aria-label="Rechercher une recette"
+          class="flex-[1_1_280px] md:max-w-[360px]"
+        />
+        <div role="group" aria-label="Filtres" class="flex flex-wrap gap-2 max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:pb-1">
+          <AppToggle v-for="f in RECIPE_FILTERS" :key="f.id" :pressed="filter === f.id" @click="filter = f.id">{{ f.label }}</AppToggle>
         </div>
       </div>
 
-      <div class="layout">
-        <section aria-label="Recettes" class="layout__main">
-          <p v-if="!filtered.length" class="empty">Aucune recette ne correspond. Essayez un autre mot ou un autre filtre.</p>
-          <div class="grid desktop-only">
+      <div class="flex flex-wrap items-start gap-10">
+        <section aria-label="Recettes" class="min-w-0 flex-[999_1_600px]">
+          <p v-if="!filtered.length" class="border-y border-default py-6 text-muted">Aucune recette ne correspond. Essayez un autre mot ou un autre filtre.</p>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 max-md:hidden">
             <RecipeCard v-for="r in filtered" :key="r.id" :recipe="r" :selected="selected?.id === r.id" @select="selectedId = r.id" />
           </div>
-          <ul class="rows mobile-only">
-            <li v-for="r in filtered" :key="r.id" class="rows__item">
-              <button type="button" class="row" @click="select(r.id)">
-                <span class="row__text">
-                  <span class="row__name">{{ r.name }}</span>
-                  <span class="row__meta mono">{{ r.timeMin }} min · {{ formatNumber(r.kcal) }} kcal · {{ r.protein }} g prot. · {{ cost(r.id) }}</span>
+          <ul class="m-0 flex list-none flex-col border-t border-default p-0 md:hidden">
+            <li v-for="r in filtered" :key="r.id" class="border-b border-default">
+              <UButton variant="ghost" block class="min-h-18 gap-4 px-0 py-4 text-left text-default hover:bg-transparent" @click="select(r.id)">
+                <span class="flex min-w-0 grow flex-col gap-1">
+                  <span class="text-[17px] font-medium leading-[1.3]">{{ r.name }}</span>
+                  <span class="font-mono text-xs text-muted">{{ r.timeMin }} min · {{ formatNumber(r.kcal) }} kcal · {{ r.protein }} g prot. · {{ cost(r.id) }}</span>
                 </span>
-                <AppIcon name="chevronRight" :size="16" />
-              </button>
+                <UIcon name="i-mise-chevron-right" class="size-4 shrink-0" />
+              </UButton>
             </li>
           </ul>
         </section>
-        <aside class="layout__side desktop-only">
+        <aside class="flex min-w-0 flex-[1_1_340px] flex-col gap-6 max-md:hidden">
           <RecipeDetails v-if="selected" :recipe="selected" :planned-count="plannedCount" @edit="openForm(selected)" />
         </aside>
       </div>
 
-      <div v-if="sheetOpen && selected" class="sheet mobile-only">
-        <button type="button" class="sheet__backdrop" aria-label="Fermer" @click="sheetOpen = false" />
-        <div class="sheet__panel" role="dialog" aria-label="Détail de la recette">
-          <button type="button" class="icon-btn sheet__close" aria-label="Fermer" @click="sheetOpen = false"><AppIcon name="close" :size="16" /></button>
+      <!-- Phones: the details in a sheet, opened by tapping a recipe. -->
+      <UDrawer
+        v-if="selected"
+        v-model:open="sheetOpen"
+        title="Détail de la recette"
+        :handle="false"
+        :ui="{
+          overlay: 'bg-limestone-950/50',
+          content: 'max-h-[92dvh] rounded-none border-t-2 border-inverted ring-0',
+          container: 'gap-0 px-4 py-6',
+          header: 'min-h-0',
+          title: 'sr-only',
+        }"
+      >
+        <template #actions>
+          <UButton icon="i-mise-close" square aria-label="Fermer" class="-mb-4" @click="sheetOpen = false" />
+        </template>
+        <template #body>
           <RecipeDetails :recipe="selected" :planned-count="plannedCount" @edit="openForm(selected)" />
-        </div>
-      </div>
+        </template>
+      </UDrawer>
     </template>
 
     <RecipeFormDialog :open="formOpen" :recipe="editing" @close="formOpen = false" @saved="selectedId = $event.id" />
   </div>
 </template>
-
-<style scoped>
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: center;
-  margin-bottom: -16px;
-}
-
-.search {
-  position: relative;
-  flex: 1 1 280px;
-  max-width: 360px;
-  display: block;
-}
-
-.search__icon {
-  position: absolute;
-  left: 16px;
-  top: 14px;
-  color: var(--c-text-2);
-}
-
-.search__input {
-  padding-left: 44px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.empty {
-  padding: 24px 0;
-  border-top: 1px solid var(--c-line);
-  border-bottom: 1px solid var(--c-line);
-  color: var(--c-text-2);
-}
-
-.rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  flex-direction: column;
-  border-top: 1px solid var(--c-line);
-}
-
-.rows__item {
-  border-bottom: 1px solid var(--c-line);
-}
-
-.row {
-  width: 100%;
-  min-height: 72px;
-  padding: 16px 0;
-  border: 0;
-  background: transparent;
-  color: var(--c-text);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.row__text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-grow: 1;
-  min-width: 0;
-}
-
-.row__name {
-  font-size: 17px;
-  font-weight: 500;
-  line-height: 1.3;
-}
-
-.row__meta {
-  font-size: 12px;
-  color: var(--c-text-2);
-}
-
-@media (max-width: 899px) {
-  .toolbar {
-    margin-bottom: 0;
-  }
-
-  .search {
-    max-width: none;
-  }
-
-  .filters {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    margin: 0 -16px;
-    padding: 0 16px 4px;
-  }
-
-  .sheet {
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    flex-direction: column;
-    justify-content: flex-end;
-  }
-
-  .sheet__backdrop {
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: rgba(14, 15, 17, 0.5);
-    cursor: pointer;
-  }
-
-  .sheet__panel {
-    position: relative;
-    max-height: 92vh;
-    overflow-y: auto;
-    padding: 24px 16px;
-    background: var(--c-bg);
-    border-top: 2px solid var(--c-fill-primary);
-    display: flex;
-    flex-direction: column;
-  }
-
-  .sheet__close {
-    align-self: flex-end;
-    margin-bottom: -16px;
-  }
-}
-</style>

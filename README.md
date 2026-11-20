@@ -10,6 +10,8 @@ daily nutrition targets that a built-in assistant helps you reach.
 
 ![Nuxt 4](https://img.shields.io/badge/Nuxt-4.6-00DC82?logo=nuxt&logoColor=white)
 ![Vue 3](https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vuedotjs&logoColor=white)
+![Nuxt UI](https://img.shields.io/badge/Nuxt_UI-4-00DC82?logo=nuxt&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Drizzle_ORM-4169E1?logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
@@ -90,6 +92,7 @@ On a phone, the same screens with a tab bar:
 | Layer | Choice |
 | --- | --- |
 | Framework | [Nuxt 4](https://nuxt.com) (Vue 3.5, Nitro server, server-side rendering) |
+| Interface | [Nuxt UI 4](https://ui.nuxt.com) components and [Tailwind CSS 4](https://tailwindcss.com) classes, themed to the design system |
 | State | [Pinia](https://pinia.vuejs.org) setup stores |
 | Database | PostgreSQL with [Drizzle ORM](https://orm.drizzle.team) and versioned SQL migrations |
 | Validation | [Zod 4](https://zod.dev) on every API input |
@@ -229,6 +232,18 @@ The interface follows the **Mael Belliard** design system: stone and limestone s
 text and brass accents; Jost for text, Josefin Sans for titles and eyebrows, JetBrains Mono
 for every figure; thin rules instead of boxes, corners of 4 px at most, no shadows or
 gradients. Every screen works on a phone, with a tab bar and bottom sheets.
+
+It is built from [Nuxt UI](https://ui.nuxt.com) components styled with Tailwind classes, with no
+hand-written CSS in the screens. The design system lives in two places:
+
+- `app/assets/css/main.css`: the colour palettes (limestone, brass, and oxblood for errors),
+  fonts, the 4 px corner cap, no shadows, and the `--ui-*` colours Nuxt UI draws with.
+- `app/app.config.ts`: how Nuxt UI components look by default (44 px buttons and fields,
+  15 px text, messages as rules rather than boxes) and its icons, taken from the line icons
+  in `app/assets/icons` (`i-mise-<name>`).
+
+Patterns used on several screens are small components in `app/components/common`
+(`AppStatRow`, `AppToggle`, `AppEyebrow`, `AppLink`…). `md:` is the desktop layout, from 900 px.
 
 ## Roadmap
 

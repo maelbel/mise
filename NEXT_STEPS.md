@@ -44,18 +44,43 @@ Enter or when you leave the field. Escape cancels; an amount that isn't a
 number between 0 and 1 000 000 isn't saved and the field goes back. The
 buttons still move by 100 g / 100 mL or by 1.
 
+## Done: Nuxt UI and Tailwind CSS
+
+Every screen is built from Nuxt UI 4 components with Tailwind CSS 4 classes;
+no `<style>` blocks are left and `main.css` holds only the theme. The design
+system is the Nuxt UI theme: palettes, fonts, 4 px corners and no shadows in
+`app/assets/css/main.css`, component defaults and icons in `app/app.config.ts`.
+Shared patterns are small components in `app/components/common`.
+
+Checked step by step with screenshots of every page and dialog at 1440 px and
+390 px (headless Brave, test database), compared with screenshots taken
+before the migration: the screens look the same, within a pixel or two.
+Typecheck and all 120 tests pass.
+
+What changed on purpose:
+
+- **Dropdowns** (difficulty, aisle, unit, ingredient, cooking time) are Nuxt
+  UI menus instead of the browser's own lists.
+- **The recipe sheet on phones** is a drawer that can also be swiped down.
+- **Buttons and rows** get a light hover colour on desktop.
+- **Links** are only the brass underlined ones (AppLink); the others are
+  buttons.
+
 ## To check yourself
 
 - [ ] Look at it on your phone. The screenshots can't show touch, scrolling
       feel or your phone's own date picker (headless Edge showed dates as
       MM/DD/YYYY; a French browser shows DD/MM/YYYY). Also check the stock
       field on the Réserve page: that the decimal keypad opens and that
-      the row still fits next to long ingredient names.
+      the row still fits next to long ingredient names. Since the move to
+      Nuxt UI, also try the dropdowns and swiping the recipe sheet down.
 
 ## Afterwards (not started, each needs its own approval)
 
 - **Dark theme.** The design system defines dark values for every colour token;
-  the app only uses the light ones.
+  the app only uses the light ones. With Nuxt UI this is mostly a `.dark`
+  block of `--ui-*` colours in `main.css` and turning `ui.colorMode` back on
+  in `nuxt.config.ts`.
 - **Error colour.** The design system has none; the app uses a deep red
   (`--c-danger: #8a2b1d`) for errors only. Add it to the design system or pick
   another.

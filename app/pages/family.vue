@@ -89,254 +89,78 @@ function doConfirmed(m: FamilyMember): Promise<void> {
 </script>
 
 <template>
-  <div class="page">
-    <NuxtLink to="/profile" class="back mobile-only"><AppIcon name="chevronLeft" :size="16" />Profil</NuxtLink>
+  <div class="flex flex-col gap-6 md:gap-10">
+    <AppBackLink to="/profile" label="Profil" />
     <PageHeader :eyebrow="`Administration · ${plural(familyStore.members.length, 'compte')}`" title="Famille" lead="Vous créez les comptes. Chacun garde ses recettes, sa semaine et son profil pour lui." />
 
-    <p v-if="loadError" class="alert" role="alert">Impossible de charger les comptes. Rechargez la page.</p>
+    <UAlert v-if="loadError" color="error" role="alert" title="Impossible de charger les comptes. Rechargez la page." />
 
-    <div v-else class="layout">
-      <section class="layout__main main" aria-label="Comptes">
-        <section v-if="reveal" class="reveal" role="status" aria-label="Mot de passe temporaire">
-          <p class="eyebrow">À transmettre à {{ reveal.name }}</p>
-          <p>Identifiant <span class="mono">{{ reveal.email }}</span>, mot de passe temporaire :</p>
-          <div class="row">
-            <code class="reveal__password mono">{{ reveal.password }}</code>
-            <button type="button" class="btn btn--primary" @click="copy">{{ copied ? 'Copié' : 'Copier' }}</button>
+    <div v-else class="flex flex-wrap items-start gap-10 md:gap-16">
+      <section class="flex min-w-0 flex-[999_1_600px] flex-col gap-6" aria-label="Comptes">
+        <section v-if="reveal" class="flex flex-col gap-4 border-t-2 border-b border-inverted py-4 text-base" role="status" aria-label="Mot de passe temporaire">
+          <AppEyebrow>À transmettre à {{ reveal.name }}</AppEyebrow>
+          <p>Identifiant <span class="font-mono">{{ reveal.email }}</span>, mot de passe temporaire :</p>
+          <div class="flex flex-wrap items-center gap-2">
+            <code class="flex min-h-12 flex-[1_1_200px] select-all items-center rounded-sm bg-muted px-4 font-mono text-lg">{{ reveal.password }}</code>
+            <UButton variant="solid" :label="copied ? 'Copié' : 'Copier'" @click="copy" />
           </div>
-          <p class="hint">Il ne sera plus affiché. {{ reveal.name }} choisira son propre mot de passe à la première connexion.</p>
-          <button type="button" class="btn reveal__done" @click="reveal = null">C’est noté</button>
+          <p class="text-sm text-muted">Il ne sera plus affiché. {{ reveal.name }} choisira son propre mot de passe à la première connexion.</p>
+          <UButton label="C’est noté" class="self-start" @click="reveal = null" />
         </section>
 
-        <p v-if="actionError" class="alert" role="alert">{{ actionError }}</p>
+        <UAlert v-if="actionError" color="error" role="alert" :title="actionError" />
 
-        <ul class="members">
-          <li v-for="m in familyStore.members" :key="m.id" class="member">
-            <div class="member__row">
-              <span class="member__badge" aria-hidden="true">{{ m.name.charAt(0).toUpperCase() }}</span>
-              <div class="member__who">
-                <span class="member__name">{{ m.name }} <span class="muted">· {{ m.isAdmin ? 'Administrateur' : 'Membre' }}</span></span>
-                <span class="mono member__email">{{ m.email }}</span>
+        <ul class="m-0 list-none border-t border-default p-0">
+          <li v-for="m in familyStore.members" :key="m.id" class="flex flex-col gap-4 border-b border-default py-4">
+            <div class="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-x-6 gap-y-4 min-[1200px]:grid-cols-[44px_minmax(0,1.2fr)_minmax(0,1fr)_minmax(320px,auto)]">
+              <UAvatar
+                :text="m.name.charAt(0).toUpperCase()"
+                aria-hidden="true"
+                :ui="{ root: 'size-11 rounded-sm bg-muted', fallback: 'font-display text-lg font-normal text-default' }"
+              />
+              <div class="flex min-w-0 flex-col gap-1 text-sm">
+                <span class="text-[17px] font-medium">{{ m.name }} <span class="text-sm font-normal text-muted">· {{ m.isAdmin ? 'Administrateur' : 'Membre' }}</span></span>
+                <span class="font-mono text-[13px] text-muted">{{ m.email }}</span>
               </div>
-              <div class="member__status">
-                <span :class="`status status--${m.status}`">{{ STATUS[m.status] }}</span>
-                <span class="muted">{{ lastSeen(m) }}</span>
+              <div class="col-start-2 flex min-w-0 flex-col gap-1 text-sm min-[1200px]:col-start-auto">
+                <span :class="{ 'text-primary': m.status === 'temporary', 'text-muted line-through': m.status === 'disabled' }">{{ STATUS[m.status] }}</span>
+                <span class="text-muted">{{ lastSeen(m) }}</span>
               </div>
-              <div v-if="!m.isAdmin" class="row">
+              <div v-if="!m.isAdmin" class="col-start-2 flex flex-wrap items-center justify-start gap-2 min-[1200px]:col-start-auto min-[1200px]:justify-end">
                 <template v-if="m.status !== 'disabled'">
-                  <button type="button" class="btn" :disabled="busy" @click="confirming = { id: m.id, kind: 'reset' }">Nouveau mot de passe</button>
-                  <button type="button" class="btn" :disabled="busy" @click="confirming = { id: m.id, kind: 'disable' }">Désactiver</button>
+                  <UButton label="Nouveau mot de passe" :disabled="busy" @click="confirming = { id: m.id, kind: 'reset' }" />
+                  <UButton label="Désactiver" :disabled="busy" @click="confirming = { id: m.id, kind: 'disable' }" />
                 </template>
-                <button v-else type="button" class="btn" :disabled="busy" @click="run(m, () => familyStore.setDisabled(m.id, false))">Réactiver</button>
+                <UButton v-else label="Réactiver" :disabled="busy" @click="run(m, () => familyStore.setDisabled(m.id, false))" />
               </div>
             </div>
-            <div v-if="confirming?.id === m.id" class="confirm" role="alert">
+            <div v-if="confirming?.id === m.id" class="flex flex-col gap-4 rounded-sm bg-muted p-4 text-[15px]" role="alert">
               <p>{{ confirmText(m) }}</p>
-              <div class="row">
-                <button type="button" class="btn btn--primary" :disabled="busy" @click="doConfirmed(m)">{{ confirming.kind === 'reset' ? 'Générer' : 'Désactiver' }}</button>
-                <button type="button" class="btn" @click="confirming = null">Annuler</button>
+              <div class="flex flex-wrap items-center gap-2">
+                <UButton variant="solid" :disabled="busy" :label="confirming.kind === 'reset' ? 'Générer' : 'Désactiver'" @click="doConfirmed(m)" />
+                <UButton label="Annuler" @click="confirming = null" />
               </div>
             </div>
           </li>
         </ul>
-        <p class="hint">Vous ne voyez ni les repas ni les profils des autres membres. Un compte désactivé garde ses données ; il suffit de le réactiver pour le retrouver.</p>
+        <p class="text-sm text-muted">Vous ne voyez ni les repas ni les profils des autres membres. Un compte désactivé garde ses données ; il suffit de le réactiver pour le retrouver.</p>
       </section>
 
-      <aside class="layout__side">
-        <form class="new" aria-labelledby="fa-new" novalidate @submit.prevent="create">
-          <p class="eyebrow">Nouveau compte</p>
-          <h2 id="fa-new" class="section-title">Ajouter un membre</h2>
-          <label class="field">Prénom<input v-model="name" class="input" autocomplete="off"></label>
-          <label class="field">E-mail de connexion<input v-model="email" class="input" type="email" autocomplete="off" inputmode="email" placeholder="prenom@exemple.fr"></label>
-          <p v-if="createError" class="alert" role="alert">{{ createError }}</p>
-          <p class="hint">Mise génère un mot de passe temporaire, et le compte démarre avec les recettes et ingrédients de base.</p>
-          <button type="submit" class="btn btn--primary new__submit" :disabled="creating">{{ creating ? 'Création…' : 'Créer le compte' }}</button>
+      <aside class="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
+        <form class="flex flex-col gap-4 rounded-sm bg-muted p-4 md:p-6" aria-labelledby="fa-new" novalidate @submit.prevent="create">
+          <AppEyebrow class="-mb-2">Nouveau compte</AppEyebrow>
+          <h2 id="fa-new" class="text-xl font-medium leading-[1.3]">Ajouter un membre</h2>
+          <UFormField label="Prénom">
+            <UInput v-model="name" class="w-full" autocomplete="off" />
+          </UFormField>
+          <UFormField label="E-mail de connexion">
+            <UInput v-model="email" class="w-full" type="email" autocomplete="off" inputmode="email" placeholder="prenom@exemple.fr" />
+          </UFormField>
+          <UAlert v-if="createError" color="error" role="alert" :title="createError" />
+          <p class="text-sm text-muted">Mise génère un mot de passe temporaire, et le compte démarre avec les recettes et ingrédients de base.</p>
+          <UButton type="submit" variant="solid" block class="min-h-12" :disabled="creating" :label="creating ? 'Création…' : 'Créer le compte'" />
         </form>
       </aside>
     </div>
   </div>
 </template>
-
-<style scoped>
-.back {
-  align-self: flex-start;
-  align-items: center;
-  gap: 4px;
-  min-height: 44px;
-  margin: -16px 0 -16px -4px;
-  font-size: 15px;
-  text-decoration: none;
-}
-
-.layout {
-  gap: 64px;
-}
-
-.main {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.reveal {
-  padding: 16px 0;
-  border-top: 2px solid var(--c-text);
-  border-bottom: 1px solid var(--c-text);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  font-size: 16px;
-}
-
-.reveal__password {
-  flex: 1 1 200px;
-  min-height: 48px;
-  padding: 0 16px;
-  border-radius: var(--radius);
-  background: var(--c-surface);
-  display: flex;
-  align-items: center;
-  font-size: 18px;
-  user-select: all;
-}
-
-.reveal__done {
-  align-self: flex-start;
-}
-
-.members {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--c-line);
-}
-
-.member {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--c-line);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.member__row {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1.2fr) minmax(0, 1fr) minmax(320px, auto);
-  align-items: center;
-  gap: 16px 24px;
-}
-
-.member__row > .row {
-  justify-content: flex-end;
-}
-
-.member__badge {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border-radius: var(--radius);
-  background: var(--c-surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-size: 18px;
-}
-
-.member__who,
-.member__status {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 14px;
-}
-
-.member__who {
-  min-width: 0;
-}
-
-.member__name {
-  font-size: 17px;
-  font-weight: 500;
-}
-
-.member__name .muted {
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.member__email {
-  font-size: 13px;
-  color: var(--c-text-2);
-}
-
-.member__status {
-  min-width: 0;
-}
-
-.status--temporary {
-  color: var(--c-accent);
-}
-
-.status--disabled {
-  color: var(--c-text-2);
-  text-decoration: line-through;
-}
-
-.confirm {
-  padding: 16px;
-  border-radius: var(--radius);
-  background: var(--c-surface);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-.new {
-  padding: 24px;
-  border-radius: var(--radius);
-  background: var(--c-surface);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.new > .eyebrow {
-  margin-bottom: -8px;
-}
-
-.new__submit {
-  min-height: 48px;
-}
-
-@media (max-width: 1199px) {
-  .member__row {
-    grid-template-columns: 44px minmax(0, 1fr);
-  }
-
-  .member__status,
-  .member__row > .row {
-    grid-column: 2;
-    justify-content: flex-start;
-  }
-}
-
-@media (max-width: 899px) {
-  .layout {
-    gap: 40px;
-  }
-
-  .new {
-    padding: 16px;
-  }
-}
-</style>

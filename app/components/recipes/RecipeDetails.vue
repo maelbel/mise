@@ -30,6 +30,13 @@ const lines = computed(() =>
 )
 const total = computed(() => formatPrice(lines.value.reduce((sum, l) => sum + l.cents, 0)))
 
+const nutrition = computed<{ label: string, value: string, unit?: string, accent?: boolean }[]>(() => [
+  { label: 'Calories', value: formatNumber(props.recipe.kcal), unit: 'kcal' },
+  { label: 'Protéines', value: `${props.recipe.protein} g`, accent: true },
+  { label: 'Glucides', value: `${props.recipe.carbs} g` },
+  { label: 'Lipides', value: `${props.recipe.fat} g` },
+])
+
 /** One serving's share of the user's daily targets. */
 const share = computed(() => {
   const t = profileStore.targets
@@ -43,193 +50,54 @@ const usage = computed(() => props.plannedCount
 </script>
 
 <template>
-  <section class="details" aria-label="Détail de la recette">
-    <div class="details__head">
-      <p class="eyebrow">{{ difficultyLabel(recipe.difficulty) }} · {{ recipe.timeMin }} min</p>
-      <h2 class="details__name">{{ recipe.name }}</h2>
-      <p class="muted">{{ recipe.diet.length ? recipe.diet.map(dietLabel).join(' · ') : 'Aucun régime particulier' }}</p>
+  <section class="flex flex-col gap-6" aria-label="Détail de la recette">
+    <div class="flex flex-col gap-2">
+      <AppEyebrow>{{ difficultyLabel(recipe.difficulty) }} · {{ recipe.timeMin }} min</AppEyebrow>
+      <h2 class="text-[32px] font-medium leading-[1.15] max-md:text-2xl max-md:leading-[1.15]">{{ recipe.name }}</h2>
+      <p class="text-muted">{{ recipe.diet.length ? recipe.diet.map(dietLabel).join(' · ') : 'Aucun régime particulier' }}</p>
     </div>
 
-    <dl class="nutrition">
-      <div><dt>Calories</dt><dd class="mono">{{ formatNumber(recipe.kcal) }} <small>kcal</small></dd></div>
-      <div><dt>Protéines</dt><dd class="mono nutrition__protein">{{ recipe.protein }} g</dd></div>
-      <div><dt>Glucides</dt><dd class="mono">{{ recipe.carbs }} g</dd></div>
-      <div><dt>Lipides</dt><dd class="mono">{{ recipe.fat }} g</dd></div>
+    <dl class="m-0 grid grid-cols-2 border-t border-default">
+      <div
+        v-for="(n, i) in nutrition"
+        :key="n.label"
+        class="flex flex-col gap-1 border-b border-default py-4"
+        :class="i % 2 ? 'border-l pl-4' : 'pr-4'"
+      >
+        <dt class="text-sm text-muted">{{ n.label }}</dt>
+        <dd class="m-0 font-mono text-xl" :class="{ 'text-primary': n.accent }">
+          {{ n.value }}{{ n.unit ? ' ' : '' }}<small v-if="n.unit" class="text-xs text-muted">{{ n.unit }}</small>
+        </dd>
+      </div>
     </dl>
-    <p v-if="share" class="hint">
-      Une portion couvre <strong class="mono">{{ share.kcal }} %</strong> de vos calories et <strong class="mono">{{ share.protein }} %</strong> de vos protéines du jour.
+    <p v-if="share" class="text-sm text-muted">
+      Une portion couvre <strong class="font-mono">{{ share.kcal }} %</strong> de vos calories et <strong class="font-mono">{{ share.protein }} %</strong> de vos protéines du jour.
     </p>
 
-    <div class="ingredients">
-      <div class="ingredients__head">
-        <h3 class="ingredients__title">Ingrédients</h3>
-        <div class="stepper" role="group" aria-label="Portions">
-          <button type="button" class="icon-btn" aria-label="Une portion de moins" :disabled="portions <= MIN_PORTIONS" @click="portions--">
-            <AppIcon name="minus" :size="16" />
-          </button>
-          <span class="stepper__value mono" aria-live="polite">{{ plural(portions, 'portion') }}</span>
-          <button type="button" class="icon-btn icon-btn--primary" aria-label="Une portion de plus" :disabled="portions >= MAX_PORTIONS" @click="portions++">
-            <AppIcon name="plus" :size="16" />
-          </button>
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between gap-4">
+        <h3 class="text-[17px] font-medium">Ingrédients</h3>
+        <div class="flex items-center gap-2" role="group" aria-label="Portions">
+          <UButton icon="i-mise-minus" square aria-label="Une portion de moins" :disabled="portions <= MIN_PORTIONS" @click="portions--" />
+          <span class="min-w-22 text-center font-mono text-sm" aria-live="polite">{{ plural(portions, 'portion') }}</span>
+          <UButton icon="i-mise-plus" square variant="solid" aria-label="Une portion de plus" :disabled="portions >= MAX_PORTIONS" @click="portions++" />
         </div>
       </div>
-      <ul v-if="lines.length" class="lines">
-        <li v-for="l in lines" :key="l.id" class="line">
+      <ul v-if="lines.length" class="m-0 list-none border-t border-default p-0">
+        <li v-for="l in lines" :key="l.id" class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-4 border-b border-default py-2 text-[15px]">
           <span>{{ l.name }}</span>
-          <span class="line__qty mono">{{ l.quantity }}</span>
-          <span class="line__cost mono">{{ l.cost }}</span>
+          <span class="font-mono text-xs text-muted">{{ l.quantity }}</span>
+          <span class="min-w-16 text-right font-mono text-xs">{{ l.cost }}</span>
         </li>
       </ul>
-      <p v-else class="hint">Aucun ingrédient renseigné.</p>
-      <div class="total">
+      <p v-else class="text-sm text-muted">Aucun ingrédient renseigné.</p>
+      <div class="flex items-baseline justify-between gap-4 pt-2 text-[15px] font-medium">
         <span>Coût estimé</span>
-        <span class="total__value mono">{{ total }}</span>
+        <span class="font-mono text-lg font-normal">{{ total }}</span>
       </div>
     </div>
 
-    <p class="muted">{{ usage }}</p>
-    <button type="button" class="btn details__edit" @click="$emit('edit')">Modifier la recette</button>
+    <p class="text-muted">{{ usage }}</p>
+    <UButton label="Modifier la recette" class="self-start" @click="$emit('edit')" />
   </section>
 </template>
-
-<style scoped>
-.details {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.details__head {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.details__edit {
-  align-self: flex-start;
-}
-
-.details__name {
-  font-size: 32px;
-  font-weight: 500;
-  line-height: 1.15;
-}
-
-.nutrition {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 1px solid var(--c-line);
-}
-
-.nutrition > div {
-  padding: 16px 16px 16px 0;
-  border-bottom: 1px solid var(--c-line);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.nutrition > div:nth-child(even) {
-  padding: 16px 0 16px 16px;
-  border-left: 1px solid var(--c-line);
-}
-
-.nutrition dt {
-  font-size: 14px;
-  color: var(--c-text-2);
-}
-
-.nutrition dd {
-  margin: 0;
-  font-size: 20px;
-}
-
-.nutrition small {
-  font-size: 12px;
-  color: var(--c-text-2);
-}
-
-.nutrition__protein {
-  color: var(--c-accent);
-}
-
-.ingredients {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ingredients__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.ingredients__title {
-  font-size: 17px;
-  font-weight: 500;
-}
-
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stepper__value {
-  min-width: 88px;
-  text-align: center;
-  font-size: 14px;
-}
-
-.lines {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--c-line);
-}
-
-.line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 16px;
-  align-items: baseline;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--c-line);
-  font-size: 15px;
-}
-
-.line__qty {
-  font-size: 12px;
-  color: var(--c-text-2);
-}
-
-.line__cost {
-  min-width: 64px;
-  text-align: right;
-  font-size: 12px;
-}
-
-.total {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
-  padding-top: 8px;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.total__value {
-  font-size: 18px;
-  font-weight: 400;
-}
-
-@media (max-width: 899px) {
-  .details__name {
-    font-size: 24px;
-  }
-}
-</style>

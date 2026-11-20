@@ -7,85 +7,27 @@ const emit = defineEmits<{ edit: [day: number, slot: MealSlot] }>()
 </script>
 
 <template>
-  <ul class="meals">
-    <li v-for="m in day.meals" :key="m.slot" class="meals__item">
-      <button
-        type="button"
-        class="meal"
+  <ul class="m-0 flex list-none flex-col border-t border-default p-0">
+    <li v-for="m in day.meals" :key="m.slot" class="border-b border-default">
+      <UButton
+        variant="ghost"
+        block
+        class="min-h-18 gap-4 px-0 py-4 text-left text-default hover:bg-transparent"
         :aria-label="`Changer le ${m.slotLabel.toLowerCase()} : ${m.recipe?.name ?? 'rien de prévu'}`"
         @click="emit('edit', day.day, m.slot)"
       >
-        <span class="meal__body">
-          <span class="meal__top">
-            <span class="slot-chip">{{ m.slotLabel }}</span>
-            <span v-if="m.portions > 1" class="portions-mark">×{{ m.portions }}</span>
+        <span class="flex min-w-0 grow flex-col gap-1">
+          <span class="flex items-center gap-2">
+            <span class="font-mono text-xs text-muted">{{ m.slotLabel }}</span>
+            <PortionsBadge v-if="m.portions > 1" :portions="m.portions" />
           </span>
-          <span class="meal__name">{{ m.recipe?.name ?? 'Ajouter un repas' }}</span>
-          <span v-if="m.recipe" class="meal__meta mono">
+          <span class="text-[17px] font-medium leading-[1.3]">{{ m.recipe?.name ?? 'Ajouter un repas' }}</span>
+          <span v-if="m.recipe" class="font-mono text-xs text-muted">
             {{ m.recipe.timeMin }} min · {{ formatNumber(m.nutrition.kcal) }} kcal · {{ m.nutrition.protein }} g prot.
           </span>
         </span>
-        <AppIcon name="chevronRight" :size="16" class="meal__chevron" />
-      </button>
+        <UIcon name="i-mise-chevron-right" class="size-4 shrink-0 text-muted" />
+      </UButton>
     </li>
   </ul>
 </template>
-
-<style scoped>
-.meals {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--c-line);
-}
-
-.meals__item {
-  border-bottom: 1px solid var(--c-line);
-}
-
-.meal {
-  width: 100%;
-  min-height: 72px;
-  padding: 16px 0;
-  border: 0;
-  background: transparent;
-  color: var(--c-text);
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  text-align: left;
-  cursor: pointer;
-}
-
-.meal__body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-grow: 1;
-  min-width: 0;
-}
-
-.meal__top {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.meal__name {
-  font-size: 17px;
-  font-weight: 500;
-  line-height: 1.3;
-}
-
-.meal__meta {
-  font-size: 12px;
-  color: var(--c-text-2);
-}
-
-.meal__chevron {
-  flex-shrink: 0;
-  color: var(--c-text-2);
-}
-</style>
