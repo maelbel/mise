@@ -55,6 +55,15 @@
   --font-display: 'Josefin Sans', Futura, 'Century Gothic', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
 
+  /* Text sizes keep the design's 1.5 line height; set `leading-*` where it differs. */
+  --text-xs--line-height: 1.5;
+  --text-sm--line-height: 1.5;
+  --text-base--line-height: 1.5;
+  --text-lg--line-height: 1.5;
+  --text-xl--line-height: 1.5;
+  --text-2xl--line-height: 1.5;
+  --text-3xl--line-height: 1.5;
+
   /* `md:` is the desktop layout: phones and narrow windows are below 900 px. */
   --breakpoint-md: 900px;
   /* Page side margin: `px-gutter`. */

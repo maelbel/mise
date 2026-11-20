@@ -54,34 +54,37 @@ watch(week, () => {
 </script>
 
 <template>
-  <div class="page">
-    <PageHeader :eyebrow="label" title="Au menu cette semaine" lead="Tout préparer avant de cuisiner." class="desktop-only">
+  <div class="flex flex-col gap-6 md:gap-10">
+    <PageHeader :eyebrow="label" title="Au menu cette semaine" lead="Tout préparer avant de cuisiner." class="max-md:hidden">
       <WeekSwitcher />
     </PageHeader>
-    <header class="mobile-head mobile-only">
-      <div class="mobile-head__text">
-        <p class="eyebrow">{{ range }}</p>
-        <h1 class="page-title">Au menu</h1>
+    <header class="flex items-end justify-between gap-4 md:hidden">
+      <div class="flex flex-col gap-2">
+        <AppEyebrow>{{ range }}</AppEyebrow>
+        <h1 class="text-[clamp(32px,5vw,48px)] font-medium leading-[1.1] tracking-[-0.01em]">Au menu</h1>
       </div>
       <WeekSwitcher />
     </header>
 
-    <p v-if="error" class="alert" role="alert">
-      Impossible de charger la semaine. Vérifiez que la base de données tourne, puis rechargez la page.
-    </p>
+    <UAlert
+      v-if="error"
+      color="error"
+      role="alert"
+      title="Impossible de charger la semaine. Vérifiez que la base de données tourne, puis rechargez la page."
+    />
 
     <template v-else-if="selected">
-      <div class="desktop-only intro">
+      <div class="flex flex-col gap-4 max-md:hidden">
         <WeekStats :totals="weekTotals" :target="profileStore.targets" />
-        <p v-if="!profileStore.targets" class="hint">
-          <NuxtLink to="/profile">Renseignez votre profil</NuxtLink> pour comparer vos journées à vos propres objectifs de calories et de protéines.
+        <p v-if="!profileStore.targets" class="text-sm text-muted">
+          <AppLink to="/profile">Renseignez votre profil</AppLink> pour comparer vos journées à vos propres objectifs de calories et de protéines.
         </p>
       </div>
 
-      <div class="layout">
-        <div class="layout__main">
+      <div class="flex flex-wrap items-start gap-10">
+        <div class="min-w-0 flex-[999_1_600px]">
           <WeekBoard
-            class="desktop-only"
+            class="max-md:hidden"
             :days="days"
             :selected-day="selectedDay"
             :editing="editing"
@@ -89,128 +92,41 @@ watch(week, () => {
             @edit="edit"
           />
 
-          <div class="mobile-only mobile-stack">
+          <div class="flex flex-col gap-4 md:hidden">
             <DayPicker :days="days" :selected-day="selectedDay" @select="selectedDay = $event" />
             <DayTotalsCard :day="selected" :target="profileStore.targets" />
-            <NuxtLink v-if="chefStore.tip" to="/chef" class="tip">
-              <span class="eyebrow tip__label">Chef</span>
-              <span class="tip__text">{{ chefStore.tip.label }} : {{ plural(chefStore.tip.changes.length, 'changement') }} proposés</span>
-              <AppIcon name="chevronRight" :size="16" />
-            </NuxtLink>
+            <ULink v-if="chefStore.tip" to="/chef" raw class="flex min-h-11 items-center gap-2 py-2 text-default">
+              <AppEyebrow as="span" class="shrink-0">Chef</AppEyebrow>
+              <span class="grow text-sm leading-[1.4]">{{ chefStore.tip.label }} : {{ plural(chefStore.tip.changes.length, 'changement') }} proposés</span>
+              <UIcon name="i-mise-chevron-right" class="size-4 shrink-0" />
+            </ULink>
             <DayMealList :day="selected" @edit="edit" />
           </div>
         </div>
 
-        <aside class="layout__side">
-          <div v-if="planStore.lastChange" role="status" class="notice undo-bar">
-            <span>{{ planStore.lastChange.note }}</span>
-            <button type="button" class="btn" :disabled="undoing" @click="undo">Annuler</button>
+        <aside class="flex min-w-0 flex-[1_1_340px] flex-col gap-6 max-md:contents">
+          <UAlert v-if="planStore.lastChange" role="status" orientation="horizontal" :title="planStore.lastChange.note" class="max-md:order-first">
+            <template #actions>
+              <UButton label="Annuler" :disabled="undoing" @click="undo" />
+            </template>
+          </UAlert>
+
+          <!-- On phones the editor is a sheet over the page. -->
+          <div v-if="editing" class="max-md:fixed max-md:inset-0 max-md:z-30 max-md:flex max-md:flex-col max-md:justify-end">
+            <button type="button" class="absolute inset-0 hidden cursor-pointer bg-limestone-950/50 max-md:block" aria-label="Fermer" @click="editing = null" />
+            <MealEditor
+              :key="`${editing.day}-${editing.slot}`"
+              :day="editing.day"
+              :slot="editing.slot"
+              class="relative max-md:max-h-[92vh] max-md:overflow-y-auto"
+              @close="editing = null"
+            />
           </div>
 
-          <div v-if="editing" class="editor-wrap">
-            <button type="button" class="editor-backdrop" aria-label="Fermer" @click="editing = null" />
-            <MealEditor :key="`${editing.day}-${editing.slot}`" :day="editing.day" :slot="editing.slot" class="editor-sheet" @close="editing = null" />
-          </div>
-
-          <DayTotalsCard class="desktop-only" :day="selected" :target="profileStore.targets" />
-          <ChefPanel class="desktop-only" />
+          <DayTotalsCard class="max-md:hidden" :day="selected" :target="profileStore.targets" />
+          <ChefPanel class="max-md:hidden" />
         </aside>
       </div>
     </template>
   </div>
 </template>
-
-<style scoped>
-.intro {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.mobile-head {
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-}
-
-.mobile-head__text {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mobile-stack {
-  flex-direction: column;
-  gap: 16px;
-}
-
-.tip {
-  min-height: 44px;
-  padding: 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--c-text);
-  text-decoration: none;
-}
-
-.tip:hover {
-  color: var(--c-text);
-}
-
-.tip__label {
-  flex-shrink: 0;
-}
-
-.tip__text {
-  flex-grow: 1;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.undo-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.editor-backdrop {
-  display: none;
-}
-
-@media (max-width: 899px) {
-  .layout__side {
-    display: contents;
-  }
-
-  .undo-bar {
-    order: -1;
-  }
-
-  /* On phones the editor is a bottom sheet over the page. */
-  .editor-wrap {
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-  }
-
-  .editor-backdrop {
-    display: block;
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: rgba(14, 15, 17, 0.5);
-    cursor: pointer;
-  }
-
-  .editor-sheet {
-    position: relative;
-    max-height: 92vh;
-    overflow-y: auto;
-  }
-}
-</style>

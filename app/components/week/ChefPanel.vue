@@ -33,22 +33,13 @@ async function apply(): Promise<void> {
 </script>
 
 <template>
-  <section class="chef" aria-labelledby="chef-panel-title">
-    <div class="chef__head">
-      <p class="eyebrow">Chef</p>
-      <h2 id="chef-panel-title" class="section-title">Des idées tirées de vos recettes</h2>
+  <section class="flex flex-col gap-4 border-t border-default pt-6" aria-labelledby="chef-panel-title">
+    <div class="flex flex-col gap-2">
+      <AppEyebrow>Chef</AppEyebrow>
+      <h2 id="chef-panel-title" class="text-xl font-medium leading-[1.3]">Des idées tirées de vos recettes</h2>
     </div>
-    <div role="group" aria-label="Suggestions" class="chips">
-      <button
-        v-for="s in chips"
-        :key="s.id"
-        type="button"
-        class="toggle"
-        :aria-pressed="selected === s.id"
-        @click="toggle(s.id)"
-      >
-        {{ s.label }}
-      </button>
+    <div role="group" aria-label="Suggestions" class="flex flex-wrap gap-2">
+      <AppToggle v-for="s in chips" :key="s.id" :pressed="selected === s.id" @click="toggle(s.id)">{{ s.label }}</AppToggle>
     </div>
     <SuggestionView
       v-if="suggestion"
@@ -58,31 +49,7 @@ async function apply(): Promise<void> {
       @apply="apply"
       @dismiss="selected = null"
     />
-    <p v-if="error" class="alert" role="alert">{{ error }}</p>
-    <NuxtLink to="/chef" class="chef__more">Ouvrir la page Chef</NuxtLink>
+    <UAlert v-if="error" color="error" role="alert" :title="error" />
+    <AppLink to="/chef" class="inline-flex min-h-11 items-center self-start text-[15px]">Ouvrir la page Chef</AppLink>
   </section>
 </template>
-
-<style scoped>
-.chef {
-  padding-top: 24px;
-  border-top: 1px solid var(--c-line);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.chef__head {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.chef__more {
-  align-self: flex-start;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 15px;
-}
-</style>
