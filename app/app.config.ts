@@ -46,6 +46,41 @@ export default defineAppConfig({
       ],
       defaultVariants: { variant: 'outline' },
     },
+    // Fields: 44 px, 15 px text, a 1 px stone outline.
+    input: {
+      variants: {
+        size: {
+          md: { base: 'min-h-11 px-4 py-0 text-[15px] gap-2', leading: 'ps-4', trailing: 'pe-4', leadingIcon: 'size-4', trailingIcon: 'size-4' },
+        },
+      },
+      compoundVariants: [
+        { leading: true, size: 'md', class: 'ps-11' },
+        // Nuxt UI drops fields to 14 px on desktop: keep 15 px.
+        { fixed: false, size: 'md', class: 'md:text-[15px]' },
+        { trailing: true, size: 'md', class: 'pe-11' },
+      ],
+    },
+    select: {
+      slots: {
+        content: 'rounded-sm ring-default',
+        item: 'min-h-11 text-[15px]',
+      },
+      variants: {
+        size: {
+          md: { base: 'min-h-11 px-4 py-0 text-[15px] gap-2', trailing: 'pe-4', trailingIcon: 'size-4', item: 'text-[15px]' },
+        },
+      },
+      compoundVariants: [
+        { trailing: true, size: 'md', class: 'pe-11' },
+        { fixed: false, size: 'md', class: 'md:text-[15px]' },
+      ],
+    },
+    formField: {
+      slots: {
+        label: 'font-normal text-sm text-muted',
+        container: 'mt-2',
+      },
+    },
     // Messages: no box, a rule above and below in the text colour (red for errors).
     alert: {
       slots: {

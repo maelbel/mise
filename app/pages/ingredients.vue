@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import type { Ingredient } from '#shared/types/domain'
 import { SHELVES } from '#shared/utils/constants'
 import { shelfLabel, UNIT_NAMES } from '#shared/utils/labels'
@@ -13,7 +14,8 @@ const { error } = await useAsyncData('ingredients-page', async () => {
   return true
 })
 
-const ALL = ''
+/** "Tous les rayons" (a select option can't be empty). */
+const ALL = 'all'
 const shelf = ref(ALL)
 const query = ref('')
 const formOpen = ref(false)
@@ -36,6 +38,27 @@ const shelves = computed(() => {
   const others = ingredientsStore.shelves.filter((s) => !known.includes(s)).sort()
   return [...known.filter((s) => ingredientsStore.shelves.includes(s)), ...others]
 })
+
+const shelfItems = computed(() => [{ label: 'Tous les rayons', value: ALL }, ...shelves.value.map((s) => ({ label: shelfLabel(s), value: s }))])
+
+type Row = (typeof groups.value)[number]['rows'][number]
+const RIGHT = { th: 'text-right', td: 'text-right' }
+const columns: TableColumn<Row>[] = [
+  { accessorKey: 'name', header: 'Nom', meta: { class: { th: 'w-[30%]', td: 'text-base font-medium' } } },
+  { accessorKey: 'sold', header: 'Vendu', meta: { class: { td: 'text-muted' } } },
+  { accessorKey: 'price', header: 'Prix', meta: { class: RIGHT } },
+  { accessorKey: 'used', header: 'Utilisé dans', meta: { class: { td: 'text-muted' } } },
+  { accessorKey: 'stock', header: 'En réserve', meta: { class: RIGHT } },
+  { id: 'actions', header: '', meta: { class: { th: 'w-11 pr-0', td: 'pr-0' } } },
+]
+const tableUi = {
+  root: 'overflow-x-auto',
+  base: 'w-full min-w-[640px] table-fixed',
+  separator: 'bg-inverted',
+  tbody: 'divide-y-0',
+  th: 'px-0 pr-8 py-2 text-sm font-normal text-muted',
+  td: 'border-b border-default px-0 pr-8 py-3 text-[15px] text-default whitespace-normal align-middle',
+}
 
 const usedIn = computed(() => {
   const counts = new Map<number, number>()
@@ -69,59 +92,54 @@ const groups = computed(() => {
 </script>
 
 <template>
-  <div class="page">
-    <NuxtLink to="/storage" class="back mobile-only"><AppIcon name="chevronLeft" :size="16" />Réserve</NuxtLink>
+  <div class="flex flex-col gap-6 md:gap-10">
+    <ULink to="/storage" raw class="-my-4 -ml-1 flex min-h-11 items-center gap-1 self-start text-[15px] text-primary md:hidden">
+      <UIcon name="i-mise-chevron-left" class="size-4" />Réserve
+    </ULink>
     <PageHeader :eyebrow="`${plural(ingredientsStore.ingredients.length, 'ingrédient')} · ${plural(shelves.length, 'rayon')}`" title="Ingrédients" lead="Prix au kilo, au litre ou à la pièce : Mise s’en sert pour chiffrer chaque recette.">
-      <button type="button" class="btn btn--primary" @click="openForm(null)"><AppIcon name="plus" :size="16" />Ajouter un ingrédient</button>
+      <UButton variant="solid" icon="i-mise-plus" label="Ajouter un ingrédient" @click="openForm(null)" />
     </PageHeader>
 
-    <p v-if="error" class="alert" role="alert">Impossible de charger les ingrédients. Vérifiez que la base de données tourne.</p>
+    <UAlert v-if="error" color="error" role="alert" title="Impossible de charger les ingrédients. Vérifiez que la base de données tourne." />
 
     <template v-else>
-      <div class="toolbar">
-        <label class="search">
-          <span class="visually-hidden">Rechercher un ingrédient</span>
-          <AppIcon name="search" :size="16" class="search__icon" />
-          <input v-model="query" type="search" class="input search__input" placeholder="Rechercher un ingrédient">
-        </label>
-        <label class="shelf-filter">
-          <span class="visually-hidden">Rayon</span>
-          <select v-model="shelf" class="input">
-            <option :value="ALL">Tous les rayons</option>
-            <option v-for="s in shelves" :key="s" :value="s">{{ shelfLabel(s) }}</option>
-          </select>
-        </label>
+      <div class="flex flex-wrap gap-4">
+        <UInput
+          v-model="query"
+          type="search"
+          icon="i-mise-search"
+          placeholder="Rechercher un ingrédient"
+          aria-label="Rechercher un ingrédient"
+          class="flex-[1_1_260px] md:max-w-[360px]"
+        />
+        <USelect v-model="shelf" :items="shelfItems" aria-label="Rayon" class="flex-[1_1_100%] md:flex-[0_1_240px]" />
       </div>
 
-      <p v-if="!groups.length" class="empty">Aucun ingrédient ne correspond.</p>
+      <p v-if="!groups.length" class="border-y border-default py-6 text-muted">Aucun ingrédient ne correspond.</p>
 
-      <section v-for="g in groups" :key="g.shelf" class="group" :aria-label="g.label">
-        <h2 class="eyebrow group__title"><span>{{ g.label }}</span><span class="mono group__count">{{ g.rows.length }}</span></h2>
-        <div class="table-wrap desktop-only">
-          <div class="table">
-            <div class="table__row table__row--head">
-              <span>Nom</span><span>Vendu</span><span class="num">Prix</span><span>Utilisé dans</span><span class="num">En réserve</span><span />
-            </div>
-            <ul class="table__body">
-              <li v-for="i in g.rows" :key="i.id" class="table__row">
-                <span class="name">{{ i.name }}</span>
-                <span class="muted">{{ i.sold }}</span>
-                <span class="num mono">{{ i.price }}</span>
-                <span class="muted">{{ i.used }}</span>
-                <span class="num mono">{{ i.stock }}</span>
-                <button type="button" class="icon-btn" :aria-label="`Modifier ${i.name}`" @click="openForm(i.ingredient)"><AppIcon name="edit" :size="16" /></button>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <ul class="rows mobile-only">
-          <li v-for="i in g.rows" :key="i.id" class="rows__item">
-            <span class="rows__text">
-              <span class="name">{{ i.name }}</span>
-              <span class="muted rows__meta">{{ i.used }} · réserve {{ i.stock }}</span>
+      <section v-for="g in groups" :key="g.shelf" class="flex flex-col gap-2" :aria-label="g.label">
+        <AppEyebrow as="h2" class="flex justify-between">
+          <span>{{ g.label }}</span><span class="font-mono tracking-normal text-muted">{{ g.rows.length }}</span>
+        </AppEyebrow>
+        <UTable :data="g.rows" :columns="columns" :ui="tableUi" class="max-md:hidden">
+          <template #price-cell="{ row }">
+            <span class="font-mono text-[13px]">{{ row.original.price }}</span>
+          </template>
+          <template #stock-cell="{ row }">
+            <span class="font-mono text-[13px]">{{ row.original.stock }}</span>
+          </template>
+          <template #actions-cell="{ row }">
+            <UButton icon="i-mise-edit" square :aria-label="`Modifier ${row.original.name}`" @click="openForm(row.original.ingredient)" />
+          </template>
+        </UTable>
+        <ul class="m-0 flex list-none flex-col border-t border-default p-0 md:hidden">
+          <li v-for="i in g.rows" :key="i.id" class="flex min-h-16 items-center justify-between gap-4 border-b border-default py-2">
+            <span class="flex min-w-0 flex-col gap-1">
+              <span class="text-base font-medium">{{ i.name }}</span>
+              <span class="text-[13px] text-muted">{{ i.used }} · réserve {{ i.stock }}</span>
             </span>
-            <span class="mono rows__price">{{ i.price }}</span>
-            <button type="button" class="icon-btn" :aria-label="`Modifier ${i.name}`" @click="openForm(i.ingredient)"><AppIcon name="edit" :size="16" /></button>
+            <span class="ml-auto shrink-0 font-mono text-[13px]">{{ i.price }}</span>
+            <UButton icon="i-mise-edit" square :aria-label="`Modifier ${i.name}`" @click="openForm(i.ingredient)" />
           </li>
         </ul>
       </section>
@@ -130,160 +148,3 @@ const groups = computed(() => {
     <IngredientFormDialog :open="formOpen" :ingredient="editing" :unit-locked="unitLocked" @close="formOpen = false" />
   </div>
 </template>
-
-<style scoped>
-.back {
-  align-self: flex-start;
-  align-items: center;
-  gap: 4px;
-  min-height: 44px;
-  margin: -16px 0 -16px -4px;
-  font-size: 15px;
-  text-decoration: none;
-}
-
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.search {
-  position: relative;
-  flex: 1 1 260px;
-  max-width: 360px;
-  display: block;
-}
-
-.search__icon {
-  position: absolute;
-  left: 16px;
-  top: 14px;
-  color: var(--c-text-2);
-}
-
-.search__input {
-  padding-left: 44px;
-}
-
-.shelf-filter {
-  flex: 0 1 240px;
-  display: block;
-}
-
-.empty {
-  padding: 24px 0;
-  border-top: 1px solid var(--c-line);
-  border-bottom: 1px solid var(--c-line);
-  color: var(--c-text-2);
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.group__title {
-  display: flex;
-  justify-content: space-between;
-}
-
-.group__count {
-  letter-spacing: 0;
-  color: var(--c-text-2);
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.table {
-  /* Not Tailwind's `table` utility (display: table). */
-  display: block;
-  min-width: 640px;
-}
-
-.table__body {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.table__row {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr)) 44px;
-  gap: 32px;
-  align-items: center;
-  min-height: 48px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--c-line);
-  font-size: 15px;
-}
-
-.table__row--head {
-  min-height: 0;
-  padding: 8px 0;
-  border-bottom-color: var(--c-text);
-  font-size: 14px;
-  color: var(--c-text-2);
-}
-
-.name {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.num {
-  text-align: right;
-}
-
-.table__row .mono {
-  font-size: 13px;
-}
-
-.rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  flex-direction: column;
-  border-top: 1px solid var(--c-line);
-}
-
-.rows__item {
-  min-height: 64px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--c-line);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.rows__text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.rows__meta {
-  font-size: 13px;
-}
-
-.rows__price {
-  margin-left: auto;
-  flex-shrink: 0;
-  font-size: 13px;
-}
-
-@media (max-width: 899px) {
-  .search {
-    max-width: none;
-  }
-
-  .shelf-filter {
-    flex: 1 1 100%;
-  }
-}
-</style>

@@ -109,7 +109,7 @@ describe('recipes', () => {
     const dialog = document.body.querySelector('[role="dialog"]')!
     expect(dialog.textContent).toContain('Modifier la recette')
     expect(dialog.querySelector('input')!.value).toBe(salmon.name)
-    expect(dialog.querySelectorAll('select[id^="line-ing-"]')).toHaveLength(salmon.ingredients.length)
+    expect(dialog.querySelectorAll('[id^="line-ing-"]')).toHaveLength(salmon.ingredients.length)
     wrapper.unmount()
   })
 
@@ -119,7 +119,7 @@ describe('recipes', () => {
     const dialog = document.body.querySelector('[role="dialog"]')!
     expect(dialog.textContent).toContain('Modifier l’ingrédient')
     expect(dialog.querySelector('input')!.value).toBe(ingredient.name)
-    expect(dialog.querySelectorAll('select')[1]!.disabled).toBe(true)
+    expect(dialog.querySelector<HTMLButtonElement>('#ingredient-unit')!.disabled).toBe(true)
     expect(dialog.textContent).toContain('L’unité est fixée')
     wrapper.unmount()
   })

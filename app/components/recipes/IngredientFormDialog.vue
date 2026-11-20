@@ -24,7 +24,9 @@ watch(() => props.open, (open) => {
   if (open) Object.assign(form, props.ingredient ? fromIngredient(props.ingredient) : blank())
 }, { immediate: true })
 
-const shelfOptions = computed(() => [...new Set([...SHELVES, ...ingredientsStore.shelves])])
+const shelfItems = computed(() => [...new Set([...SHELVES, ...ingredientsStore.shelves])].map((s) => ({ label: shelfLabel(s), value: s })))
+const unitItems = UNITS.map((u) => ({ label: UNIT_NAMES[u], value: u }))
+const unitDisabled = computed(() => editing.value && !!props.unitLocked)
 
 function close(): void {
   Object.assign(form, blank())
@@ -56,51 +58,35 @@ async function submit(): Promise<void> {
 
 <template>
   <AppDialog :open="open" :title="editing ? 'Modifier l’ingrédient' : 'Nouvel ingrédient'" @close="close">
-    <form class="form" novalidate @submit.prevent="submit">
-      <label class="field">Nom<input v-model="form.name" class="input" maxlength="80" placeholder="Ex. : pois chiches"></label>
-      <label class="field">Rayon
-        <select v-model="form.shelf" class="input">
-          <option v-for="s in shelfOptions" :key="s" :value="s">{{ shelfLabel(s) }}</option>
-        </select>
-      </label>
-      <div class="grid">
-        <label class="field">Unité dans les recettes
-          <select v-model="form.unit" class="input" :disabled="editing && unitLocked" :aria-describedby="editing && unitLocked ? 'unit-locked' : undefined">
-            <option v-for="u in UNITS" :key="u" :value="u">{{ UNIT_NAMES[u] }}</option>
-          </select>
-        </label>
-        <label class="field">Prix (€ / {{ PURCHASE_UNITS[form.unit].label }})
-          <input v-model="form.price" class="input mono" inputmode="decimal" placeholder="0,00">
-        </label>
+    <form class="flex flex-col gap-6" novalidate @submit.prevent="submit">
+      <UFormField label="Nom">
+        <UInput v-model="form.name" class="w-full" maxlength="80" placeholder="Ex. : pois chiches" />
+      </UFormField>
+      <UFormField label="Rayon">
+        <USelect v-model="form.shelf" class="w-full" :items="shelfItems" />
+      </UFormField>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+        <UFormField label="Unité dans les recettes">
+          <USelect
+            id="ingredient-unit"
+            v-model="form.unit"
+            class="w-full"
+            :items="unitItems"
+            :disabled="unitDisabled"
+            :aria-describedby="unitDisabled ? 'unit-locked' : undefined"
+          />
+        </UFormField>
+        <UFormField :label="`Prix (€ / ${PURCHASE_UNITS[form.unit].label})`">
+          <UInput v-model="form.price" class="w-full" :ui="{ base: 'font-mono' }" inputmode="decimal" placeholder="0,00" />
+        </UFormField>
       </div>
-      <p v-if="editing && unitLocked" id="unit-locked" class="hint">L’unité est fixée : cet ingrédient sert dans une recette ou en réserve, dont les quantités sont comptées dans cette unité.</p>
-      <p class="hint">Les recettes comptent en {{ unitLabel(form.unit, 2) }} ; le prix est par {{ PURCHASE_UNITS[form.unit].label }}, comme en rayon.</p>
-      <p v-if="error" class="alert" role="alert">{{ error }}</p>
-      <div class="form__actions">
-        <button type="button" class="btn" @click="close">Annuler</button>
-        <button type="submit" class="btn btn--primary" :disabled="saving">{{ editing ? 'Enregistrer les modifications' : 'Ajouter l’ingrédient' }}</button>
+      <p v-if="unitDisabled" id="unit-locked" class="text-sm text-muted">L’unité est fixée : cet ingrédient sert dans une recette ou en réserve, dont les quantités sont comptées dans cette unité.</p>
+      <p class="text-sm text-muted">Les recettes comptent en {{ unitLabel(form.unit, 2) }} ; le prix est par {{ PURCHASE_UNITS[form.unit].label }}, comme en rayon.</p>
+      <UAlert v-if="error" color="error" role="alert" :title="error" />
+      <div class="flex flex-wrap justify-end gap-2">
+        <UButton label="Annuler" @click="close" />
+        <UButton type="submit" variant="solid" :disabled="saving" :label="editing ? 'Enregistrer les modifications' : 'Ajouter l’ingrédient'" />
       </div>
     </form>
   </AppDialog>
 </template>
-
-<style scoped>
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.form__actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-</style>

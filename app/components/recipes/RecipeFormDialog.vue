@@ -11,7 +11,8 @@ const recipesStore = useRecipesStore()
 const ingredientsStore = useIngredientsStore()
 
 interface Line {
-  ingredientId: number | null
+  /** Undefined until one is chosen. */
+  ingredientId: number | undefined
   quantity: number | null
 }
 
@@ -26,7 +27,7 @@ function blank() {
     fat: 0,
     tags: [] as string[],
     diet: [] as string[],
-    lines: [{ ingredientId: null, quantity: null }] as Line[],
+    lines: [{ ingredientId: undefined, quantity: null }] as Line[],
   }
 }
 
@@ -49,8 +50,17 @@ watch(() => props.open, (open) => {
   if (open) Object.assign(form, props.recipe ? fromRecipe(props.recipe) : blank())
 }, { immediate: true })
 
-function unitOf(ingredientId: number | null): string {
-  const ingredient = ingredientId === null ? undefined : ingredientsStore.byId.get(ingredientId)
+const difficultyItems = DIFFICULTIES.map((d) => ({ label: difficultyLabel(d), value: d }))
+const ingredientItems = computed(() => ingredientsStore.ingredients.map((i) => ({ label: i.name, value: i.id })))
+const nutrition = [
+  { key: 'kcal', label: 'Calories (kcal)' },
+  { key: 'protein', label: 'Protéines (g)' },
+  { key: 'carbs', label: 'Glucides (g)' },
+  { key: 'fat', label: 'Lipides (g)' },
+] as const
+
+function unitOf(ingredientId: number | undefined): string {
+  const ingredient = ingredientId === undefined ? undefined : ingredientsStore.byId.get(ingredientId)
   return ingredient ? unitLabel(ingredient.unit, 2) : ''
 }
 
@@ -67,7 +77,7 @@ function close(): void {
 }
 
 async function submit(): Promise<void> {
-  const lines = form.lines.filter((l) => l.ingredientId !== null && l.quantity)
+  const lines = form.lines.filter((l) => l.ingredientId !== undefined && l.quantity)
   if (!form.name.trim()) {
     error.value = 'Donnez un nom à la recette.'
     return
@@ -105,118 +115,69 @@ async function submit(): Promise<void> {
 
 <template>
   <AppDialog :open="open" :title="editing ? 'Modifier la recette' : 'Nouvelle recette'" @close="close">
-    <form class="form" novalidate @submit.prevent="submit">
-      <label class="field">Nom de la recette<input v-model.trim="form.name" class="input" maxlength="120" placeholder="Ex. : curry de pois chiches"></label>
-      <div class="grid">
-        <label class="field">Temps (min)<input v-model.number="form.timeMin" class="input mono" type="number" min="1" max="1440"></label>
-        <label class="field">Difficulté
-          <select v-model="form.difficulty" class="input">
-            <option v-for="d in DIFFICULTIES" :key="d" :value="d">{{ difficultyLabel(d) }}</option>
-          </select>
-        </label>
+    <form class="flex flex-col gap-6" novalidate @submit.prevent="submit">
+      <UFormField label="Nom de la recette">
+        <UInput v-model.trim="form.name" class="w-full" maxlength="120" placeholder="Ex. : curry de pois chiches" />
+      </UFormField>
+      <div class="grid grid-cols-2 gap-4">
+        <UFormField label="Temps (min)">
+          <UInput v-model.number="form.timeMin" class="w-full" :ui="{ base: 'font-mono' }" type="number" min="1" max="1440" />
+        </UFormField>
+        <UFormField label="Difficulté">
+          <USelect v-model="form.difficulty" class="w-full" :items="difficultyItems" />
+        </UFormField>
       </div>
-      <fieldset class="fieldset">
-        <legend class="legend">Par portion</legend>
-        <div class="grid grid--4">
-          <label class="field">Calories (kcal)<input v-model.number="form.kcal" class="input mono" type="number" min="0"></label>
-          <label class="field">Protéines (g)<input v-model.number="form.protein" class="input mono" type="number" min="0"></label>
-          <label class="field">Glucides (g)<input v-model.number="form.carbs" class="input mono" type="number" min="0"></label>
-          <label class="field">Lipides (g)<input v-model.number="form.fat" class="input mono" type="number" min="0"></label>
+      <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend class="pb-2 text-[15px] font-medium">Par portion</legend>
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-4">
+          <UFormField v-for="n in nutrition" :key="n.key" :label="n.label">
+            <UInput v-model.number="form[n.key]" class="w-full" :ui="{ base: 'font-mono' }" type="number" min="0" />
+          </UFormField>
         </div>
       </fieldset>
-      <fieldset class="fieldset">
-        <legend class="legend">Régime</legend>
-        <div class="chips">
-          <button v-for="(label, code) in DIET_LABELS" :key="code" type="button" class="toggle" :aria-pressed="form.diet.includes(code)" @click="toggle(form.diet, code)">{{ label }}</button>
+      <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend class="pb-2 text-[15px] font-medium">Régime</legend>
+        <div class="flex flex-wrap gap-2">
+          <AppToggle v-for="(label, code) in DIET_LABELS" :key="code" :pressed="form.diet.includes(code)" @click="toggle(form.diet, code)">{{ label }}</AppToggle>
         </div>
       </fieldset>
-      <fieldset class="fieldset">
-        <legend class="legend">Étiquettes</legend>
-        <div class="chips">
-          <button v-for="(label, code) in TAG_LABELS" :key="code" type="button" class="toggle" :aria-pressed="form.tags.includes(code)" @click="toggle(form.tags, code)">{{ label }}</button>
+      <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend class="pb-2 text-[15px] font-medium">Étiquettes</legend>
+        <div class="flex flex-wrap gap-2">
+          <AppToggle v-for="(label, code) in TAG_LABELS" :key="code" :pressed="form.tags.includes(code)" @click="toggle(form.tags, code)">{{ label }}</AppToggle>
         </div>
       </fieldset>
-      <fieldset class="fieldset">
-        <legend class="legend">Ingrédients pour une portion</legend>
-        <div v-for="(line, i) in form.lines" :key="i" class="line">
-          <label class="visually-hidden" :for="`line-ing-${i}`">Ingrédient {{ i + 1 }}</label>
-          <select :id="`line-ing-${i}`" v-model="line.ingredientId" class="input">
-            <option :value="null">Choisir un ingrédient</option>
-            <option v-for="ing in ingredientsStore.ingredients" :key="ing.id" :value="ing.id">{{ ing.name }}</option>
-          </select>
-          <label class="visually-hidden" :for="`line-qty-${i}`">Quantité de l’ingrédient {{ i + 1 }}</label>
-          <input :id="`line-qty-${i}`" v-model.number="line.quantity" class="input mono line__qty" type="number" min="0" step="any" placeholder="Qté">
-          <span class="line__unit">{{ unitOf(line.ingredientId) }}</span>
-          <button type="button" class="icon-btn" :aria-label="`Retirer l’ingrédient ${i + 1}`" @click="form.lines.splice(i, 1)">
-            <AppIcon name="close" :size="16" />
-          </button>
+      <fieldset class="m-0 flex flex-col gap-2 border-0 p-0">
+        <legend class="pb-2 text-[15px] font-medium">Ingrédients pour une portion</legend>
+        <div v-for="(line, i) in form.lines" :key="i" class="grid grid-cols-[minmax(0,1fr)_88px_auto_44px] items-center gap-2">
+          <USelect
+            :id="`line-ing-${i}`"
+            v-model="line.ingredientId"
+            class="w-full"
+            :items="ingredientItems"
+            placeholder="Choisir un ingrédient"
+            :aria-label="`Ingrédient ${i + 1}`"
+          />
+          <UInput
+            :id="`line-qty-${i}`"
+            v-model.number="line.quantity"
+            :ui="{ base: 'px-2 font-mono' }"
+            type="number"
+            min="0"
+            step="any"
+            placeholder="Qté"
+            :aria-label="`Quantité de l’ingrédient ${i + 1}`"
+          />
+          <span class="min-w-12 text-[13px] text-muted">{{ unitOf(line.ingredientId) }}</span>
+          <UButton icon="i-mise-close" square :aria-label="`Retirer l’ingrédient ${i + 1}`" @click="form.lines.splice(i, 1)" />
         </div>
-        <button type="button" class="btn" @click="form.lines.push({ ingredientId: null, quantity: null })">
-          <AppIcon name="plus" :size="16" />Ajouter un ingrédient
-        </button>
+        <UButton icon="i-mise-plus" label="Ajouter un ingrédient" block @click="form.lines.push({ ingredientId: undefined, quantity: null })" />
       </fieldset>
-      <p v-if="error" class="alert" role="alert">{{ error }}</p>
-      <div class="form__actions">
-        <button type="button" class="btn" @click="close">Annuler</button>
-        <button type="submit" class="btn btn--primary" :disabled="saving">{{ editing ? 'Enregistrer les modifications' : 'Enregistrer la recette' }}</button>
+      <UAlert v-if="error" color="error" role="alert" :title="error" />
+      <div class="flex flex-wrap justify-end gap-2">
+        <UButton label="Annuler" @click="close" />
+        <UButton type="submit" variant="solid" :disabled="saving" :label="editing ? 'Enregistrer les modifications' : 'Enregistrer la recette'" />
       </div>
     </form>
   </AppDialog>
 </template>
-
-<style scoped>
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.grid--4 {
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-}
-
-.fieldset {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.legend {
-  padding: 0 0 8px;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px auto 44px;
-  gap: 8px;
-  align-items: center;
-}
-
-.line__qty {
-  padding: 0 8px;
-}
-
-.line__unit {
-  min-width: 48px;
-  font-size: 13px;
-  color: var(--c-text-2);
-}
-
-.form__actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-</style>
