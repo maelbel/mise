@@ -48,6 +48,10 @@ export default defineAppConfig({
     },
     // Fields: 44 px, 15 px text, a 1 px stone outline.
     input: {
+      slots: {
+        // No browser up/down arrows in number fields: typing and the ↑ ↓ keys still work.
+        base: '[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none',
+      },
       variants: {
         size: {
           md: { base: 'min-h-11 px-4 py-0 text-[15px] gap-2', leading: 'ps-4', trailing: 'pe-4', leadingIcon: 'size-4', trailingIcon: 'size-4' },
