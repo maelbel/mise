@@ -93,9 +93,7 @@ const groups = computed(() => {
 
 <template>
   <div class="flex flex-col gap-6 md:gap-10">
-    <ULink to="/storage" raw class="-my-4 -ml-1 flex min-h-11 items-center gap-1 self-start text-[15px] text-primary md:hidden">
-      <UIcon name="i-mise-chevron-left" class="size-4" />Réserve
-    </ULink>
+    <AppBackLink to="/storage" label="Réserve" />
     <PageHeader :eyebrow="`${plural(ingredientsStore.ingredients.length, 'ingrédient')} · ${plural(shelves.length, 'rayon')}`" title="Ingrédients" lead="Prix au kilo, au litre ou à la pièce : Mise s’en sert pour chiffrer chaque recette.">
       <UButton variant="solid" icon="i-mise-plus" label="Ajouter un ingrédient" @click="openForm(null)" />
     </PageHeader>

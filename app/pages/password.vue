@@ -33,110 +33,45 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <div v-if="done" class="form" role="status">
-    <div class="form__head">
-      <p class="eyebrow">Connecté</p>
-      <h1 class="page-title">Bienvenue, {{ user?.name }}</h1>
-      <p class="form__lead">Renseignez votre profil pour que Mise calcule vos calories et vos protéines du jour.</p>
+  <div v-if="done" class="flex flex-col gap-6" role="status">
+    <div class="flex flex-col gap-2">
+      <AppEyebrow>Connecté</AppEyebrow>
+      <h1 class="text-[clamp(32px,5vw,48px)] font-medium leading-[1.1] tracking-[-0.01em] text-balance">Bienvenue, {{ user?.name }}</h1>
+      <p class="text-base text-muted">Renseignez votre profil pour que Mise calcule vos calories et vos protéines du jour.</p>
     </div>
-    <NuxtLink to="/profile" class="btn btn--primary form__submit">Compléter mon profil</NuxtLink>
-    <NuxtLink to="/" class="form__later">Plus tard, aller à ma semaine</NuxtLink>
+    <UButton to="/profile" variant="solid" block class="min-h-12" label="Compléter mon profil" />
+    <AppLink to="/" class="inline-flex min-h-11 items-center self-start text-[15px]">Plus tard, aller à ma semaine</AppLink>
   </div>
 
-  <form v-else class="form" novalidate @submit.prevent="submit">
-    <div class="form__head">
-      <p class="eyebrow">Première connexion</p>
-      <h1 class="page-title">Bonjour {{ user?.name }}, choisissez votre mot de passe</h1>
-      <p class="form__lead">Le mot de passe temporaire ne fonctionnera plus ensuite. Personne d’autre, pas même l’administrateur, ne connaîtra le nouveau.</p>
+  <form v-else class="flex flex-col gap-6" novalidate @submit.prevent="submit">
+    <div class="flex flex-col gap-2">
+      <AppEyebrow>Première connexion</AppEyebrow>
+      <h1 class="text-[clamp(32px,5vw,48px)] font-medium leading-[1.1] tracking-[-0.01em] text-balance">Bonjour {{ user?.name }}, choisissez votre mot de passe</h1>
+      <p class="text-base text-muted">Le mot de passe temporaire ne fonctionnera plus ensuite. Personne d’autre, pas même l’administrateur, ne connaîtra le nouveau.</p>
     </div>
 
-    <label class="field">Nouveau mot de passe
-      <input v-model="password" class="input" :type="show ? 'text' : 'password'" autocomplete="new-password">
-    </label>
-    <label class="field">Confirmez-le
-      <span class="password">
-        <input v-model="confirm" class="input" :type="show ? 'text' : 'password'" autocomplete="new-password">
-        <button type="button" class="btn password__toggle" :aria-pressed="show" @click="show = !show">{{ show ? 'Masquer' : 'Afficher' }}</button>
-      </span>
-    </label>
+    <UFormField label="Nouveau mot de passe">
+      <UInput v-model="password" class="w-full" :type="show ? 'text' : 'password'" autocomplete="new-password" />
+    </UFormField>
+    <UFormField label="Confirmez-le">
+      <div class="flex gap-2">
+        <UInput v-model="confirm" class="w-full" :type="show ? 'text' : 'password'" autocomplete="new-password" />
+        <UButton :label="show ? 'Masquer' : 'Afficher'" class="min-w-24 justify-center text-sm md:text-sm" :aria-pressed="show" @click="show = !show" />
+      </div>
+    </UFormField>
 
-    <ul class="rules" aria-label="Règles du mot de passe">
-      <li :class="{ 'rules__ok': longEnough }"><AppIcon :name="longEnough ? 'check' : 'minus'" :size="16" />Au moins {{ PASSWORD_MIN_LENGTH }} caractères</li>
-      <li :class="{ 'rules__ok': matches }"><AppIcon :name="matches ? 'check' : 'minus'" :size="16" />Les deux mots de passe correspondent</li>
+    <ul class="m-0 flex list-none flex-col gap-2 p-0 text-sm text-muted" aria-label="Règles du mot de passe">
+      <li class="flex items-center gap-2" :class="{ 'text-default': longEnough }">
+        <UIcon :name="longEnough ? 'i-mise-check' : 'i-mise-minus'" class="size-4" />Au moins {{ PASSWORD_MIN_LENGTH }} caractères
+      </li>
+      <li class="flex items-center gap-2" :class="{ 'text-default': matches }">
+        <UIcon :name="matches ? 'i-mise-check' : 'i-mise-minus'" class="size-4" />Les deux mots de passe correspondent
+      </li>
     </ul>
 
-    <p v-if="error" class="alert" role="alert">{{ error }}</p>
+    <UAlert v-if="error" color="error" role="alert" :title="error" />
 
-    <button type="submit" class="btn btn--primary form__submit" :disabled="busy">{{ busy ? 'Enregistrement…' : 'Enregistrer et continuer' }}</button>
-    <button type="button" class="form__later" @click="logout">Se déconnecter</button>
+    <UButton type="submit" variant="solid" block class="min-h-12" :disabled="busy" :label="busy ? 'Enregistrement…' : 'Enregistrer et continuer'" />
+    <UButton variant="link" label="Se déconnecter" class="min-h-11 self-start p-0 text-[15px] text-primary underline hover:text-default" @click="logout" />
   </form>
 </template>
-
-<style scoped>
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.form__head {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form__lead {
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--c-text-2);
-}
-
-.password {
-  display: flex;
-  gap: 8px;
-}
-
-.password__toggle {
-  min-width: 96px;
-  font-size: 14px;
-}
-
-.rules {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--c-text-2);
-}
-
-.rules li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rules__ok {
-  color: var(--c-text);
-}
-
-.form__submit {
-  min-height: 48px;
-}
-
-.form__later {
-  align-self: flex-start;
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--c-accent);
-  font-size: 15px;
-  text-decoration: underline;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-}
-</style>

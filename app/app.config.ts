@@ -78,8 +78,9 @@ export default defineAppConfig({
     formField: {
       slots: {
         label: 'font-normal text-sm text-muted',
-        container: 'mt-2',
       },
+      // 8 px between a label and its field.
+      variants: { orientation: { vertical: { container: 'mt-2' } } },
     },
     // Messages: no box, a rule above and below in the text colour (red for errors).
     alert: {
