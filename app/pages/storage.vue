@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Ingredient } from '#shared/types/domain'
+import type { Stat } from '~/components/common/AppStatRow.vue'
 import { MAX_STOCK, SHELVES } from '#shared/utils/constants'
 import { shelfLabel } from '#shared/utils/labels'
 import { weekNeeds } from '#shared/utils/shopping'
@@ -37,16 +38,14 @@ function status(i: Ingredient): { text: string, short: boolean } {
   return m > 0 ? { text: `Manque ${formatQuantity(m, i.unit)}`, short: true } : { text: 'Couvre la semaine', short: false }
 }
 
-const stats = computed(() => {
+const stats = computed<Stat[]>(() => {
   const all = ingredientsStore.ingredients
   const needed = all.filter((i) => needs.value.get(i.id))
-  return {
-    inStock: all.filter((i) => i.stock > 0).length,
-    total: all.length,
-    value: formatPrice(all.reduce((sum, i) => sum + costCents(i, i.stock), 0)),
-    covered: needed.filter((i) => missing(i) === 0).length,
-    needed: needed.length,
-  }
+  return [
+    { label: 'Ingrédients en réserve', value: all.filter((i) => i.stock > 0).length, unit: `sur ${all.length}` },
+    { label: 'Valeur estimée', value: formatPrice(all.reduce((sum, i) => sum + costCents(i, i.stock), 0)) },
+    { label: 'Besoins de la semaine couverts', value: needed.filter((i) => missing(i) === 0).length, unit: `sur ${needed.length}` },
+  ]
 })
 
 const groups = computed(() => {
@@ -74,32 +73,28 @@ async function save(ingredient: Ingredient, quantity: number): Promise<void> {
 </script>
 
 <template>
-  <div class="page">
+  <div class="flex flex-col gap-6 md:gap-10">
     <PageHeader eyebrow="En réserve" title="Réserve" lead="Ce que vous avez déjà. La liste de courses en tient compte.">
-      <button type="button" class="toggle" :aria-pressed="hideEmpty" @click="hideEmpty = !hideEmpty">Masquer les vides</button>
-      <NuxtLink to="/ingredients" class="btn">Ingrédients <AppIcon name="chevronRight" :size="16" /></NuxtLink>
+      <AppToggle :pressed="hideEmpty" @click="hideEmpty = !hideEmpty">Masquer les vides</AppToggle>
+      <UButton to="/ingredients" label="Ingrédients" trailing-icon="i-mise-chevron-right" />
     </PageHeader>
 
-    <p v-if="error" class="alert" role="alert">Impossible de charger votre réserve. Vérifiez que la base de données tourne.</p>
+    <UAlert v-if="error" color="error" role="alert" title="Impossible de charger votre réserve. Vérifiez que la base de données tourne." />
 
     <template v-else>
-      <dl class="stat-row">
-        <div><dt>Ingrédients en réserve</dt><dd>{{ stats.inStock }} <small>sur {{ stats.total }}</small></dd></div>
-        <div><dt>Valeur estimée</dt><dd>{{ stats.value }}</dd></div>
-        <div><dt>Besoins de la semaine couverts</dt><dd>{{ stats.covered }} <small>sur {{ stats.needed }}</small></dd></div>
-      </dl>
+      <AppStatRow :stats="stats" />
 
-      <p v-if="saveError" class="alert" role="alert">{{ saveError }}</p>
-      <p v-if="!groups.length" class="empty">Rien ici pour l’instant.</p>
+      <UAlert v-if="saveError" color="error" role="alert" :title="saveError" />
+      <p v-if="!groups.length" class="text-sm text-muted">Rien ici pour l’instant.</p>
 
-      <div class="groups">
-        <section v-for="g in groups" :key="g.shelf" class="group" :aria-label="g.label">
-          <h2 class="eyebrow">{{ g.label }}</h2>
-          <ul class="items">
-            <li v-for="i in g.items" :key="i.id" class="item">
-              <span class="item__text">
-                <span class="item__name">{{ i.name }}</span>
-                <span class="item__status" :class="{ 'item__status--short': status(i).short }">{{ status(i).text }}</span>
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,400px),1fr))] gap-10">
+        <section v-for="g in groups" :key="g.shelf" class="flex min-w-0 flex-col gap-2" :aria-label="g.label">
+          <AppEyebrow as="h2">{{ g.label }}</AppEyebrow>
+          <ul class="m-0 list-none border-t border-default p-0">
+            <li v-for="i in g.items" :key="i.id" class="flex min-h-16 items-center justify-between gap-2 border-b border-default py-2 md:gap-4">
+              <span class="flex min-w-0 flex-col gap-1">
+                <span class="text-base font-medium">{{ i.name }}</span>
+                <span class="text-sm" :class="status(i).short ? 'text-primary' : 'text-muted'">{{ status(i).text }}</span>
               </span>
               <StockStepper :ingredient="i" @change="save(i, $event)" @invalid="saveError = INVALID_QUANTITY" />
             </li>
@@ -109,69 +104,3 @@ async function save(ingredient: Ingredient, quantity: number): Promise<void> {
     </template>
   </div>
 </template>
-
-<style scoped>
-.empty {
-  padding: 24px 0;
-  border-top: 1px solid var(--c-line);
-  border-bottom: 1px solid var(--c-line);
-  color: var(--c-text-2);
-}
-
-.groups {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
-  gap: 40px;
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.items {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--c-line);
-}
-
-.item {
-  min-height: 64px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--c-line);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.item__text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.item__name {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.item__status {
-  font-size: 14px;
-  color: var(--c-text-2);
-}
-
-.item__status--short {
-  color: var(--c-accent);
-}
-
-@media (max-width: 899px) {
-  .item {
-    gap: 8px;
-  }
-}
-</style>

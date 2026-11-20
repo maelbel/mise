@@ -39,63 +39,22 @@ function cancel(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <span class="stepper" role="group" :aria-label="`Quantité de ${ingredient.name}`">
-    <button type="button" class="icon-btn" :aria-label="`Moins de ${ingredient.name}`" :disabled="ingredient.stock <= 0" @click="step(-1)">
-      <AppIcon name="minus" :size="16" />
-    </button>
-    <label class="stepper__field">
-      <span class="visually-hidden">Quantité de {{ ingredient.name }} en {{ unit }}</span>
-      <input
+  <span class="flex shrink-0 items-center gap-1 md:gap-2" role="group" :aria-label="`Quantité de ${ingredient.name}`">
+    <UButton icon="i-mise-minus" square :aria-label="`Moins de ${ingredient.name}`" :disabled="ingredient.stock <= 0" @click="step(-1)" />
+    <span class="flex items-center gap-1">
+      <UInput
         v-model="text"
-        class="input mono stepper__input"
+        :aria-label="`Quantité de ${ingredient.name} en ${unit}`"
+        class="w-16 md:w-18"
+        :ui="{ base: 'px-2 text-right font-mono text-sm md:text-sm' }"
         inputmode="decimal"
         autocomplete="off"
         @keydown.enter.prevent="commit"
         @keydown.esc="cancel"
         @blur="commit"
-      >
-      <span class="stepper__unit" aria-hidden="true">{{ unit }}</span>
-    </label>
-    <button type="button" class="icon-btn icon-btn--primary" :aria-label="`Plus de ${ingredient.name}`" @click="step(1)">
-      <AppIcon name="plus" :size="16" />
-    </button>
+      />
+      <span class="min-w-10 text-[13px] text-muted" aria-hidden="true">{{ unit }}</span>
+    </span>
+    <UButton icon="i-mise-plus" square variant="solid" :aria-label="`Plus de ${ingredient.name}`" @click="step(1)" />
   </span>
 </template>
-
-<style scoped>
-.stepper {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stepper__field {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.stepper__input {
-  width: 72px;
-  padding: 0 8px;
-  text-align: right;
-  font-size: 14px;
-}
-
-.stepper__unit {
-  min-width: 40px;
-  font-size: 13px;
-  color: var(--c-text-2);
-}
-
-@media (max-width: 899px) {
-  .stepper {
-    gap: 4px;
-  }
-
-  .stepper__input {
-    width: 64px;
-  }
-}
-</style>
