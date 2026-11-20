@@ -28,6 +28,8 @@ export default defineNuxtConfig({
     customCollections: [{ prefix: 'mise', dir: './app/assets/icons' }],
     // Served with the app: no request to the Iconify API.
     serverBundle: 'local',
+    // Inline SVG: thin lines stay as sharp as before (CSS masks render them lighter).
+    mode: 'svg',
   },
   app: {
     head: {

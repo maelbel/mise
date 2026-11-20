@@ -102,22 +102,26 @@ describe('recipes', () => {
     expect(wrapper.text()).toContain('Pâtes crémeuses au saumon')
   })
 
+  // Dialogs render in the page body, outside the mounted component.
   it('opens the recipe form filled in when editing', async () => {
     const salmon = starterData().recipes[1]!
     const wrapper = await mountSuspended(RecipeFormDialog, { props: { open: true, recipe: salmon } })
-    expect(wrapper.text()).toContain('Modifier la recette')
-    expect((wrapper.find('input').element as HTMLInputElement).value).toBe(salmon.name)
-    expect(wrapper.findAll('select[id^="line-ing-"]')).toHaveLength(salmon.ingredients.length)
+    const dialog = document.body.querySelector('[role="dialog"]')!
+    expect(dialog.textContent).toContain('Modifier la recette')
+    expect(dialog.querySelector('input')!.value).toBe(salmon.name)
+    expect(dialog.querySelectorAll('select[id^="line-ing-"]')).toHaveLength(salmon.ingredients.length)
+    wrapper.unmount()
   })
 
   it('locks the unit of an ingredient in use', async () => {
     const ingredient = starterData().ingredients[0]!
     const wrapper = await mountSuspended(IngredientFormDialog, { props: { open: true, ingredient, unitLocked: true } })
-    expect(wrapper.text()).toContain('Modifier l’ingrédient')
-    expect((wrapper.find('input').element as HTMLInputElement).value).toBe(ingredient.name)
-    const unit = wrapper.findAll('select')[1]!
-    expect(unit.attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('L’unité est fixée')
+    const dialog = document.body.querySelector('[role="dialog"]')!
+    expect(dialog.textContent).toContain('Modifier l’ingrédient')
+    expect(dialog.querySelector('input')!.value).toBe(ingredient.name)
+    expect(dialog.querySelectorAll('select')[1]!.disabled).toBe(true)
+    expect(dialog.textContent).toContain('L’unité est fixée')
+    wrapper.unmount()
   })
 
   it('filters by search text, tags, diet, time and protein', () => {

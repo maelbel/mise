@@ -3,36 +3,14 @@ defineProps<{ eyebrow?: string, title: string, lead?: string }>()
 </script>
 
 <template>
-  <header class="page-head">
-    <div class="page-head__text">
-      <p v-if="eyebrow" class="eyebrow">{{ eyebrow }}</p>
-      <h1 class="page-title">{{ title }}</h1>
-      <p v-if="lead" class="lead">{{ lead }}</p>
+  <header class="flex flex-wrap items-end justify-between gap-6">
+    <div class="flex max-w-[680px] flex-col gap-2 md:gap-4">
+      <AppEyebrow v-if="eyebrow">{{ eyebrow }}</AppEyebrow>
+      <h1 class="text-[clamp(32px,5vw,48px)] font-medium leading-[1.1] tracking-[-0.01em] text-balance">{{ title }}</h1>
+      <p v-if="lead" class="text-[clamp(18px,2.4vw,22px)] italic leading-[1.4] text-muted">{{ lead }}</p>
     </div>
-    <div v-if="$slots.default" class="page-head__actions">
+    <div v-if="$slots.default" class="flex flex-wrap items-center gap-2">
       <slot />
     </div>
   </header>
 </template>
-
-<style scoped>
-.page-head__text {
-  max-width: 680px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.page-head__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-@media (max-width: 899px) {
-  .page-head__text {
-    gap: 8px;
-  }
-}
-</style>
