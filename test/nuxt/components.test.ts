@@ -3,6 +3,8 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import DayMealList from '~/components/week/DayMealList.vue'
 import SuggestionView from '~/components/week/SuggestionView.vue'
 import RecipeCard from '~/components/recipes/RecipeCard.vue'
+import RecipeFormDialog from '~/components/recipes/RecipeFormDialog.vue'
+import IngredientFormDialog from '~/components/recipes/IngredientFormDialog.vue'
 import { matchesRecipe } from '~/composables/useRecipeFilters'
 import type { PlannedDay } from '~/composables/useWeekSummary'
 import { starterData } from '../fixtures'
@@ -56,6 +58,24 @@ describe('recipes', () => {
     const wrapper = await mountSuspended(RecipeCard, { props: { recipe: starterData().recipes[1]!, selected: true } })
     expect(wrapper.find('button').attributes('aria-pressed')).toBe('true')
     expect(wrapper.text()).toContain('Pâtes crémeuses au saumon')
+  })
+
+  it('opens the recipe form filled in when editing', async () => {
+    const salmon = starterData().recipes[1]!
+    const wrapper = await mountSuspended(RecipeFormDialog, { props: { open: true, recipe: salmon } })
+    expect(wrapper.text()).toContain('Modifier la recette')
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe(salmon.name)
+    expect(wrapper.findAll('select[id^="line-ing-"]')).toHaveLength(salmon.ingredients.length)
+  })
+
+  it('locks the unit of an ingredient in use', async () => {
+    const ingredient = starterData().ingredients[0]!
+    const wrapper = await mountSuspended(IngredientFormDialog, { props: { open: true, ingredient, unitLocked: true } })
+    expect(wrapper.text()).toContain('Modifier l’ingrédient')
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe(ingredient.name)
+    const unit = wrapper.findAll('select')[1]!
+    expect(unit.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('L’unité est fixée')
   })
 
   it('filters by search text, tags, diet, time and protein', () => {

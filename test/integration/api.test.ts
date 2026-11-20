@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { fetch, setup } from '@nuxt/test-utils/e2e'
-import type { FamilyMember, ProfileResponse, PublicUser, Recipe, WeekPlan } from '../../shared/types/domain'
+import type { FamilyMember, Ingredient, ProfileResponse, PublicUser, Recipe, WeekPlan } from '../../shared/types/domain'
 import { emptyProfile } from '../../shared/utils/targets'
 import { startOfWeek } from '../../shared/utils/week'
 import { ADMIN, freshTestDb, MEMBER } from './testDb'
@@ -185,6 +185,32 @@ describe('separate data', () => {
     expect(slot.status).toBe(400)
     expect((await call(`/api/stock/${aliceIngredient}`, { method: 'PUT', cookie: bob, body: { quantity: 1 } })).status).toBe(404)
     expect((await call('/api/shopping/checks', { method: 'PUT', cookie: bob, body: { week: WEEK, ingredientId: aliceIngredient, checked: true } })).status).toBe(404)
+  })
+
+  it('refuses to edit the other account\'s recipes and ingredients', async () => {
+    const { id: _id, ...fields } = aliceRecipe
+    const recipe = await call(`/api/recipes/${aliceRecipe.id}`, { method: 'PUT', cookie: bob, body: { ...fields, name: 'Bob Soup' } })
+    expect(recipe.status).toBe(404)
+    const ingredient = await call(`/api/ingredients/${aliceRecipe.ingredients[0]!.ingredientId}`, {
+      method: 'PUT', cookie: bob, body: { name: 'Mine', shelf: 'Dairy', unit: 'g', priceCents: 1 },
+    })
+    expect(ingredient.status).toBe(404)
+  })
+
+  it('edits your own recipe and ingredient', async () => {
+    const { id: _id, ...fields } = aliceRecipe
+    const renamed = await call(`/api/recipes/${aliceRecipe.id}`, { method: 'PUT', cookie: alice, body: { ...fields, name: 'Soupe d’Alice' } })
+    expect(renamed.status).toBe(200)
+    expect((renamed.data as Recipe).name).toBe('Soupe d’Alice')
+
+    const ingredients = (await call('/api/ingredients', { cookie: alice })).data as Ingredient[]
+    const used = ingredients.find((i) => i.id === aliceRecipe.ingredients[0]!.ingredientId)!
+    const otherUnit = used.unit === 'pcs' ? 'g' : 'pcs'
+    const locked = await call(`/api/ingredients/${used.id}`, { method: 'PUT', cookie: alice, body: { name: used.name, shelf: used.shelf, unit: otherUnit, priceCents: used.priceCents } })
+    expect(locked.status).toBe(409)
+    const repriced = await call(`/api/ingredients/${used.id}`, { method: 'PUT', cookie: alice, body: { name: used.name, shelf: used.shelf, unit: used.unit, priceCents: used.priceCents + 10 } })
+    expect(repriced.status).toBe(200)
+    expect((repriced.data as Ingredient).priceCents).toBe(used.priceCents + 10)
   })
 
   it('keeps week plans apart', async () => {

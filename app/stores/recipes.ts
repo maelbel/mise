@@ -18,5 +18,12 @@ export const useRecipesStore = defineStore('recipes', () => {
     return recipe
   }
 
-  return { recipes, byId, load, create }
+  /** Saves the recipe and puts the server's version in place of the old one. */
+  async function update(id: number, input: NewRecipeInput): Promise<Recipe> {
+    const recipe = await api<Recipe>(`/api/recipes/${id}`, { method: 'PUT', body: input })
+    recipes.value = recipes.value.map((r) => (r.id === id ? recipe : r))
+    return recipe
+  }
+
+  return { recipes, byId, load, create, update }
 })

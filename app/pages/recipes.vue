@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Recipe } from '#shared/types/domain'
 import { formatPrice, recipeCostCents } from '#shared/utils/units'
 
 useHead({ title: 'Recettes · Mise' })
@@ -22,6 +23,13 @@ const selectedId = ref<number | null>(null)
 /** Phones show the details in a sheet, opened by tapping a recipe. */
 const sheetOpen = ref(false)
 const formOpen = ref(false)
+/** The recipe being edited, or null when the form creates a new one. */
+const editing = ref<Recipe | null>(null)
+
+function openForm(recipe: Recipe | null): void {
+  editing.value = recipe
+  formOpen.value = true
+}
 
 const selected = computed(() => {
   const list = recipesStore.recipes
@@ -46,7 +54,7 @@ const cost = (id: number) => {
 <template>
   <div class="page">
     <PageHeader :eyebrow="plural(recipesStore.recipes.length, 'recette')" title="Vos recettes" lead="Ce que vous savez cuisiner, et ce que ça coûte.">
-      <button type="button" class="btn btn--primary" @click="formOpen = true"><AppIcon name="plus" :size="16" />Nouvelle recette</button>
+      <button type="button" class="btn btn--primary" @click="openForm(null)"><AppIcon name="plus" :size="16" />Nouvelle recette</button>
     </PageHeader>
 
     <p v-if="error" class="alert" role="alert">Impossible de charger les recettes. Vérifiez que la base de données tourne.</p>
@@ -84,7 +92,7 @@ const cost = (id: number) => {
           </ul>
         </section>
         <aside class="layout__side desktop-only">
-          <RecipeDetails v-if="selected" :recipe="selected" :planned-count="plannedCount" />
+          <RecipeDetails v-if="selected" :recipe="selected" :planned-count="plannedCount" @edit="openForm(selected)" />
         </aside>
       </div>
 
@@ -92,12 +100,12 @@ const cost = (id: number) => {
         <button type="button" class="sheet__backdrop" aria-label="Fermer" @click="sheetOpen = false" />
         <div class="sheet__panel" role="dialog" aria-label="Détail de la recette">
           <button type="button" class="icon-btn sheet__close" aria-label="Fermer" @click="sheetOpen = false"><AppIcon name="close" :size="16" /></button>
-          <RecipeDetails :recipe="selected" :planned-count="plannedCount" />
+          <RecipeDetails :recipe="selected" :planned-count="plannedCount" @edit="openForm(selected)" />
         </div>
       </div>
     </template>
 
-    <RecipeFormDialog :open="formOpen" @close="formOpen = false" @created="selectedId = $event.id" />
+    <RecipeFormDialog :open="formOpen" :recipe="editing" @close="formOpen = false" @saved="selectedId = $event.id" />
   </div>
 </template>
 

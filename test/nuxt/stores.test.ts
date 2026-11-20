@@ -65,12 +65,41 @@ describe('ingredients store', () => {
     expect(store.byId.get(1)?.stock).toBe(0)
   })
 
+  it('replaces an edited ingredient and keeps the list in name order', async () => {
+    const { ingredients } = starterData()
+    const first = [...ingredients].sort((a, b) => a.name.localeCompare(b.name))[0]!
+    registerEndpoint(`/api/ingredients/${first.id}`, { method: 'PUT', handler: async (event) => ({ ...first, ...(await readBody(event)) }) })
+    const store = useIngredientsStore()
+    await store.load()
+    await store.update(first.id, { name: 'Zeste de citron', shelf: first.shelf, unit: first.unit, priceCents: 999 })
+    expect(store.ingredients).toHaveLength(ingredients.length)
+    expect(store.ingredients.at(-1)).toMatchObject({ id: first.id, name: 'Zeste de citron', priceCents: 999 })
+  })
+
   it('never stores a negative stock', async () => {
     registerEndpoint('/api/stock/2', { method: 'PUT', handler: async (event) => readBody(event) })
     const store = useIngredientsStore()
     await store.load()
     await store.setStock(2, -100)
     expect(store.byId.get(2)?.stock).toBe(0)
+  })
+})
+
+describe('recipes store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    registerEndpoint('/api/recipes', () => starterData().recipes)
+  })
+
+  it('replaces an edited recipe in place', async () => {
+    const [, salmon] = starterData().recipes
+    registerEndpoint(`/api/recipes/${salmon!.id}`, { method: 'PUT', handler: async (event) => ({ id: salmon!.id, ...(await readBody(event)) }) })
+    const store = useRecipesStore()
+    await store.load()
+    const { id: _id, ...fields } = salmon!
+    await store.update(salmon!.id, { ...fields, name: 'Pâtes au saumon' })
+    expect(store.recipes[1]).toMatchObject({ id: salmon!.id, name: 'Pâtes au saumon' })
+    expect(store.recipes).toHaveLength(starterData().recipes.length)
   })
 })
 

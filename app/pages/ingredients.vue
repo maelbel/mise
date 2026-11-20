@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Ingredient } from '#shared/types/domain'
 import { SHELVES } from '#shared/utils/constants'
 import { shelfLabel, UNIT_NAMES } from '#shared/utils/labels'
 import { formatQuantity, formatUnitPrice } from '#shared/utils/units'
@@ -16,6 +17,16 @@ const ALL = ''
 const shelf = ref(ALL)
 const query = ref('')
 const formOpen = ref(false)
+/** The ingredient being edited, or null when the form creates a new one. */
+const editing = ref<Ingredient | null>(null)
+
+function openForm(ingredient: Ingredient | null): void {
+  editing.value = ingredient
+  formOpen.value = true
+}
+
+/** Recipe quantities and stock are counted in the ingredient's unit, so it can't change while either uses it. */
+const unitLocked = computed(() => !!editing.value && ((usedIn.value.get(editing.value.id) ?? 0) > 0 || editing.value.stock > 0))
 
 const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
 
@@ -45,6 +56,7 @@ const groups = computed(() => {
           const n = usedIn.value.get(i.id) ?? 0
           return {
             ...i,
+            ingredient: i,
             sold: UNIT_NAMES[i.unit],
             price: formatUnitPrice(i),
             used: n ? plural(n, 'recette') : 'Aucune recette',
@@ -60,7 +72,7 @@ const groups = computed(() => {
   <div class="page">
     <NuxtLink to="/storage" class="back mobile-only"><AppIcon name="chevronLeft" :size="16" />Réserve</NuxtLink>
     <PageHeader :eyebrow="`${plural(ingredientsStore.ingredients.length, 'ingrédient')} · ${plural(shelves.length, 'rayon')}`" title="Ingrédients" lead="Prix au kilo, au litre ou à la pièce : Mise s’en sert pour chiffrer chaque recette.">
-      <button type="button" class="btn btn--primary" @click="formOpen = true"><AppIcon name="plus" :size="16" />Ajouter un ingrédient</button>
+      <button type="button" class="btn btn--primary" @click="openForm(null)"><AppIcon name="plus" :size="16" />Ajouter un ingrédient</button>
     </PageHeader>
 
     <p v-if="error" class="alert" role="alert">Impossible de charger les ingrédients. Vérifiez que la base de données tourne.</p>
@@ -88,7 +100,7 @@ const groups = computed(() => {
         <div class="table-wrap desktop-only">
           <div class="table">
             <div class="table__row table__row--head">
-              <span>Nom</span><span>Vendu</span><span class="num">Prix</span><span>Utilisé dans</span><span class="num">En réserve</span>
+              <span>Nom</span><span>Vendu</span><span class="num">Prix</span><span>Utilisé dans</span><span class="num">En réserve</span><span />
             </div>
             <ul class="table__body">
               <li v-for="i in g.rows" :key="i.id" class="table__row">
@@ -97,6 +109,7 @@ const groups = computed(() => {
                 <span class="num mono">{{ i.price }}</span>
                 <span class="muted">{{ i.used }}</span>
                 <span class="num mono">{{ i.stock }}</span>
+                <button type="button" class="icon-btn" :aria-label="`Modifier ${i.name}`" @click="openForm(i.ingredient)"><AppIcon name="edit" :size="16" /></button>
               </li>
             </ul>
           </div>
@@ -108,12 +121,13 @@ const groups = computed(() => {
               <span class="muted rows__meta">{{ i.used }} · réserve {{ i.stock }}</span>
             </span>
             <span class="mono rows__price">{{ i.price }}</span>
+            <button type="button" class="icon-btn" :aria-label="`Modifier ${i.name}`" @click="openForm(i.ingredient)"><AppIcon name="edit" :size="16" /></button>
           </li>
         </ul>
       </section>
     </template>
 
-    <IngredientFormDialog :open="formOpen" @close="formOpen = false" />
+    <IngredientFormDialog :open="formOpen" :ingredient="editing" :unit-locked="unitLocked" @close="formOpen = false" />
   </div>
 </template>
 
@@ -196,9 +210,9 @@ const groups = computed(() => {
 
 .table__row {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr)) 44px;
   gap: 32px;
-  align-items: baseline;
+  align-items: center;
   min-height: 48px;
   padding: 12px 0;
   border-bottom: 1px solid var(--c-line);
@@ -256,6 +270,7 @@ const groups = computed(() => {
 }
 
 .rows__price {
+  margin-left: auto;
   flex-shrink: 0;
   font-size: 13px;
 }

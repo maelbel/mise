@@ -5,6 +5,7 @@ import { costCents, formatPrice, formatQuantity } from '#shared/utils/units'
 import { MAX_PORTIONS, MIN_PORTIONS } from '#shared/utils/constants'
 
 const props = defineProps<{ recipe: Recipe, plannedCount: number }>()
+defineEmits<{ edit: [] }>()
 
 const ingredientsStore = useIngredientsStore()
 const profileStore = useProfileStore()
@@ -87,6 +88,7 @@ const usage = computed(() => props.plannedCount
     </div>
 
     <p class="muted">{{ usage }}</p>
+    <button type="button" class="btn details__edit" @click="$emit('edit')">Modifier la recette</button>
   </section>
 </template>
 
@@ -101,6 +103,10 @@ const usage = computed(() => props.plannedCount
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.details__edit {
+  align-self: flex-start;
 }
 
 .details__name {

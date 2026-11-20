@@ -3,6 +3,8 @@ import { indexById } from '#shared/utils/nutrition'
 
 export type NewIngredientInput = Pick<Ingredient, 'name' | 'shelf' | 'unit' | 'priceCents'>
 
+const sortByName = (list: Ingredient[]): Ingredient[] => list.sort((a, b) => a.name.localeCompare(b.name))
+
 export const useIngredientsStore = defineStore('ingredients', () => {
   const api = useApi()
   const ingredients = ref<Ingredient[]>([])
@@ -15,7 +17,14 @@ export const useIngredientsStore = defineStore('ingredients', () => {
 
   async function create(input: NewIngredientInput): Promise<Ingredient> {
     const ingredient = await api<Ingredient>('/api/ingredients', { method: 'POST', body: input })
-    ingredients.value = [...ingredients.value, ingredient].sort((a, b) => a.name.localeCompare(b.name))
+    ingredients.value = sortByName([...ingredients.value, ingredient])
+    return ingredient
+  }
+
+  /** Saves the ingredient and puts the server's version in place of the old one, keeping the name order. */
+  async function update(id: number, input: NewIngredientInput): Promise<Ingredient> {
+    const ingredient = await api<Ingredient>(`/api/ingredients/${id}`, { method: 'PUT', body: input })
+    ingredients.value = sortByName(ingredients.value.map((i) => (i.id === id ? ingredient : i)))
     return ingredient
   }
 
@@ -33,5 +42,5 @@ export const useIngredientsStore = defineStore('ingredients', () => {
     }
   }
 
-  return { ingredients, byId, shelves, load, create, setStock }
+  return { ingredients, byId, shelves, load, create, update, setStock }
 })
