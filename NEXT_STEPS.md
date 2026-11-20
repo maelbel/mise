@@ -36,11 +36,21 @@ Use it to translate the data created before the switch to French (e.g. your
 5 starter recipes). Renaming an ingredient also changes what Chef's "foods to
 avoid" match, since they compare names.
 
+## Done: typing the stock on the Réserve page
+
+The amount between − and + is now a field: type it in the ingredient's own
+unit (g, mL, pieces, tablespoons), with a comma or a dot, and it saves on
+Enter or when you leave the field. Escape cancels; an amount that isn't a
+number between 0 and 1 000 000 isn't saved and the field goes back. The
+buttons still move by 100 g / 100 mL or by 1.
+
 ## To check yourself
 
 - [ ] Look at it on your phone. The screenshots can't show touch, scrolling
       feel or your phone's own date picker (headless Edge showed dates as
-      MM/DD/YYYY; a French browser shows DD/MM/YYYY).
+      MM/DD/YYYY; a French browser shows DD/MM/YYYY). Also check the stock
+      field on the Réserve page: that the decimal keypad opens and that
+      the row still fits next to long ingredient names.
 
 ## Afterwards (not started, each needs its own approval)
 

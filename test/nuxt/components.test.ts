@@ -5,6 +5,7 @@ import SuggestionView from '~/components/week/SuggestionView.vue'
 import RecipeCard from '~/components/recipes/RecipeCard.vue'
 import RecipeFormDialog from '~/components/recipes/RecipeFormDialog.vue'
 import IngredientFormDialog from '~/components/recipes/IngredientFormDialog.vue'
+import StockStepper from '~/components/storage/StockStepper.vue'
 import { matchesRecipe } from '~/composables/useRecipeFilters'
 import type { PlannedDay } from '~/composables/useWeekSummary'
 import { starterData } from '../fixtures'
@@ -50,6 +51,47 @@ describe('SuggestionView', () => {
     expect(wrapper.text()).toContain('Appliquer 1 changement')
     await wrapper.find('button').trigger('click')
     expect(wrapper.emitted('apply')).toHaveLength(1)
+  })
+})
+
+describe('StockStepper', () => {
+  const yogurt = { name: 'Yaourt grec', unit: 'g' as const, stock: 400 }
+
+  it('saves a typed amount on Enter', async () => {
+    const wrapper = await mountSuspended(StockStepper, { props: { ingredient: yogurt } })
+    const input = wrapper.find('input')
+    expect((input.element as HTMLInputElement).value).toBe('400')
+    await input.setValue('1 250,5')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('change')).toEqual([[1250.5]])
+  })
+
+  it('drops an amount it can\'t read, and Escape cancels', async () => {
+    const wrapper = await mountSuspended(StockStepper, { props: { ingredient: yogurt } })
+    const input = wrapper.find('input')
+    await input.setValue('-3')
+    await input.trigger('blur')
+    expect(wrapper.emitted('invalid')).toHaveLength(1)
+    expect((input.element as HTMLInputElement).value).toBe('400')
+    await input.setValue('900')
+    await input.trigger('keydown', { key: 'Escape' })
+    await input.trigger('blur')
+    expect((input.element as HTMLInputElement).value).toBe('400')
+    expect(wrapper.emitted('change')).toBeUndefined()
+  })
+
+  it('still steps with − and +, never below zero', async () => {
+    const wrapper = await mountSuspended(StockStepper, { props: { ingredient: { ...yogurt, stock: 50 } } })
+    const [minus, plus] = wrapper.findAll('button')
+    await plus!.trigger('click')
+    await minus!.trigger('click')
+    expect(wrapper.emitted('change')).toEqual([[150], [0]])
+  })
+
+  it('shows the new amount when the stock changes', async () => {
+    const wrapper = await mountSuspended(StockStepper, { props: { ingredient: yogurt } })
+    await wrapper.setProps({ ingredient: { ...yogurt, stock: 2.5 } })
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe('2,5')
   })
 })
 

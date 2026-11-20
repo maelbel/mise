@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Ingredient } from '#shared/types/domain'
-import { SHELVES } from '#shared/utils/constants'
+import { MAX_STOCK, SHELVES } from '#shared/utils/constants'
 import { shelfLabel } from '#shared/utils/labels'
 import { weekNeeds } from '#shared/utils/shopping'
-import { costCents, formatPrice, formatQuantity, stockStep } from '#shared/utils/units'
+import { costCents, formatPrice, formatQuantity } from '#shared/utils/units'
 
 useHead({ title: 'Réserve · Mise' })
 
@@ -61,10 +61,12 @@ const groups = computed(() => {
     .filter((g) => g.items.length)
 })
 
-async function change(ingredient: Ingredient, direction: 1 | -1): Promise<void> {
+const INVALID_QUANTITY = `Quantité non enregistrée : indiquez un nombre entre 0 et ${formatNumber(MAX_STOCK)}.`
+
+async function save(ingredient: Ingredient, quantity: number): Promise<void> {
   saveError.value = ''
   try {
-    await ingredientsStore.setStock(ingredient.id, ingredient.stock + direction * stockStep(ingredient.unit))
+    await ingredientsStore.setStock(ingredient.id, quantity)
   } catch {
     saveError.value = `Impossible d’enregistrer la quantité de ${ingredient.name}. Réessayez.`
   }
@@ -99,15 +101,7 @@ async function change(ingredient: Ingredient, direction: 1 | -1): Promise<void> 
                 <span class="item__name">{{ i.name }}</span>
                 <span class="item__status" :class="{ 'item__status--short': status(i).short }">{{ status(i).text }}</span>
               </span>
-              <span class="stepper" role="group" :aria-label="`Quantité de ${i.name}`">
-                <button type="button" class="icon-btn" :aria-label="`Moins de ${i.name}`" :disabled="i.stock <= 0" @click="change(i, -1)">
-                  <AppIcon name="minus" :size="16" />
-                </button>
-                <span class="stepper__value mono">{{ formatQuantity(i.stock, i.unit) }}</span>
-                <button type="button" class="icon-btn icon-btn--primary" :aria-label="`Plus de ${i.name}`" @click="change(i, 1)">
-                  <AppIcon name="plus" :size="16" />
-                </button>
-              </span>
+              <StockStepper :ingredient="i" @change="save(i, $event)" @invalid="saveError = INVALID_QUANTITY" />
             </li>
           </ul>
         </section>
@@ -175,26 +169,9 @@ async function change(ingredient: Ingredient, direction: 1 | -1): Promise<void> 
   color: var(--c-accent);
 }
 
-.stepper {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stepper__value {
-  min-width: 80px;
-  text-align: center;
-  font-size: 14px;
-}
-
 @media (max-width: 899px) {
   .item {
     gap: 8px;
-  }
-
-  .stepper__value {
-    min-width: 72px;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { costCents, formatPrice, formatQuantity, formatUnitPrice, recipeCostCents, stockStep } from '../../shared/utils/units'
+import { costCents, formatPrice, formatQuantity, formatUnitPrice, parseQuantity, quantityInputValue, recipeCostCents, stockStep } from '../../shared/utils/units'
 import { starterData } from '../fixtures'
 
 describe('units and prices', () => {
@@ -33,5 +33,28 @@ describe('units and prices', () => {
     expect(stockStep('mL')).toBe(100)
     expect(stockStep('pcs')).toBe(1)
     expect(stockStep('tbsp')).toBe(1)
+  })
+})
+
+describe('typed stock quantities', () => {
+  it('reads a comma or a dot, and ignores spaces', () => {
+    expect(parseQuantity('250')).toBe(250)
+    expect(parseQuantity('2,5')).toBe(2.5)
+    expect(parseQuantity('2.5')).toBe(2.5)
+    expect(parseQuantity(',5')).toBe(0.5)
+    expect(parseQuantity(' 1 400 ')).toBe(1400)
+    expect(parseQuantity('0')).toBe(0)
+    expect(parseQuantity('1000000')).toBe(1_000_000)
+  })
+
+  it('refuses empty, negative, non-numeric and too large amounts', () => {
+    for (const text of ['', '  ', '-5', 'abc', '2,5,1', '12kg', '1e3', '1000001']) {
+      expect(parseQuantity(text), text).toBeNull()
+    }
+  })
+
+  it('shows an amount with a French comma', () => {
+    expect(quantityInputValue(2.5)).toBe('2,5')
+    expect(quantityInputValue(1400)).toBe('1400')
   })
 })

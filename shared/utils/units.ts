@@ -1,4 +1,5 @@
 import type { Ingredient, Recipe, Unit } from '../types/domain'
+import { MAX_STOCK } from './constants'
 import { unitLabel } from './labels'
 
 interface PurchaseUnit {
@@ -49,6 +50,22 @@ export function formatQuantity(quantity: number, unit: Unit): string {
   if (unit === 'g' && quantity >= 1000) return `${trim(quantity / 1000)} kg`
   if (unit === 'mL' && quantity >= 1000) return `${trim(quantity / 1000)} L`
   return `${trim(quantity)} ${unitLabel(unit, quantity)}`
+}
+
+/**
+ * A stock quantity typed by hand, in the ingredient's unit: "2,5", "2.5" or " 250 ".
+ * Null when it isn't a number between 0 and MAX_STOCK.
+ */
+export function parseQuantity(text: string): number | null {
+  const cleaned = text.trim().replace(/\s/g, '').replace(',', '.')
+  if (!/^\d+(\.\d+)?$|^\.\d+$/.test(cleaned)) return null
+  const value = Number(cleaned)
+  return value <= MAX_STOCK ? value : null
+}
+
+/** A quantity as shown in an input, with a French comma: 2.5 → "2,5". */
+export function quantityInputValue(quantity: number): string {
+  return String(quantity).replace('.', ',')
 }
 
 /** Step used by the + / − buttons in storage. */
